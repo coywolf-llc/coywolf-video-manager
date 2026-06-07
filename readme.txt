@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 4. Settings.
 
 == Changelog ==
+
+= 1.0.8 =
+* Cap likes at view count; fix sitemap vs Yoast (rename + parse_request serve); Edit description + poster size hint (#9).
 
 = 1.0.7 =
 * Sitemap 404 fix; play-button color, alignment section + block override, like icon, transparent like bg (#8).
