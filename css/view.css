@@ -1,90 +1,125 @@
-/* Coywolf Video Manager — front-end styles. */
+/* Coywolf Video Manager — front-end styles.
+ *
+ * Selectors are scoped under .coywolf-cvm and use !important on the properties
+ * themes most often set on <figure>, <figcaption>, and <button>, so the embed
+ * looks consistent regardless of the active theme.
+ */
 
 .coywolf-cvm {
-	margin: 0 0 1.5em;
+	margin: 0 0 1.5em !important;
+	padding: 0 !important;
 }
 
 /* Responsive iframe wrapper (padding-top + max-width come from inline styles). */
-.coywolf-cvm-frame {
+.coywolf-cvm .coywolf-cvm-frame {
 	background: #000;
 	overflow: hidden;
 }
 
-.coywolf-cvm-poster {
+.coywolf-cvm .coywolf-cvm-poster {
 	border: none;
+	margin: 0;
 }
 
-.coywolf-cvm-video {
+.coywolf-cvm .coywolf-cvm-video {
 	display: block;
 	background: #000;
 }
 
-/* Video name. Unique class so it overrides generic/image figcaption styles. */
-figcaption.coywolf-cvm-title {
-	margin: 0.7em 0 0.35em;
-	padding: 0;
-	text-align: left;
-	font-weight: 700;
-	font-size: 1.15em;
-	line-height: 1.3;
-	color: inherit;
+/* Video name. Unique class + scope + !important so it beats theme figcaption
+   rules (which usually center, italicize, shrink, or float captions). */
+.coywolf-cvm figcaption.coywolf-cvm-title {
+	display: block !important;
+	float: none !important;
+	clear: none !important;
+	width: auto !important;
+	max-width: none !important;
+	margin: 0.7em 0 0.4em !important;
+	padding: 0 !important;
+	text-align: left !important;
+	font-weight: 700 !important;
+	font-size: 1.15em !important;
+	font-style: normal !important;
+	line-height: 1.3 !important;
+	color: inherit !important;
+	background: none !important;
+	caption-side: bottom;
 }
 
 /* Like / views / date row. */
-.coywolf-cvm-meta {
-	display: flex;
+.coywolf-cvm .coywolf-cvm-meta {
+	display: flex !important;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.75em 1em;
+	justify-content: flex-start;
+	gap: 0.6em 1em !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	list-style: none;
 	font-size: 0.9em;
+	line-height: 1.4;
 	color: #606060;
 }
 
-.coywolf-cvm-like {
-	display: inline-flex;
+/* Like button — reset theme <button> styling, then make it a YouTube pill. */
+.coywolf-cvm .coywolf-cvm-like {
+	display: inline-flex !important;
 	align-items: center;
 	gap: 0.45em;
-	margin: 0;
-	padding: 0.4em 0.9em;
-	border: 0;
-	border-radius: 999px;
-	background: #f2f2f2;
-	color: #0f0f0f;
-	font: inherit;
-	line-height: 1;
+	width: auto !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0.45em 0.95em !important;
+	border: 0 !important;
+	border-radius: 999px !important;
+	background: #f2f2f2 !important;
+	color: #0f0f0f !important;
+	font: inherit !important;
+	font-weight: 500 !important;
+	line-height: 1 !important;
+	letter-spacing: normal !important;
+	text-transform: none !important;
+	text-decoration: none !important;
+	box-shadow: none !important;
 	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
-.coywolf-cvm-like:hover {
-	background: #e5e5e5;
+.coywolf-cvm .coywolf-cvm-like:hover {
+	background: #e5e5e5 !important;
 }
 
-.coywolf-cvm-like:disabled {
+.coywolf-cvm .coywolf-cvm-like:disabled {
 	opacity: 0.7;
 	cursor: default;
 }
 
-.coywolf-cvm-thumb {
-	width: 20px;
-	height: 20px;
+.coywolf-cvm .coywolf-cvm-thumb {
+	display: inline-block;
+	width: 20px !important;
+	height: 20px !important;
 	fill: currentColor;
+	vertical-align: middle;
 	transform-origin: 60% 60%;
 }
 
-.coywolf-cvm-like.is-liked {
-	color: #065fd4;
+.coywolf-cvm .coywolf-cvm-like.is-liked {
+	color: #065fd4 !important;
 }
 
-.coywolf-cvm-like-count {
+.coywolf-cvm .coywolf-cvm-like-count {
 	font-variant-numeric: tabular-nums;
 }
 
-.coywolf-cvm-like-count.is-empty {
+.coywolf-cvm .coywolf-cvm-like-count.is-empty {
 	display: none;
 }
 
-.coywolf-cvm-like.is-animating .coywolf-cvm-thumb {
+.coywolf-cvm .coywolf-cvm-like.is-animating .coywolf-cvm-thumb {
 	animation: coywolf-cvm-pop 0.35s ease;
 }
 
@@ -94,16 +129,17 @@ figcaption.coywolf-cvm-title {
 	100% { transform: scale( 1 ); }
 }
 
-.coywolf-cvm-views,
-.coywolf-cvm-date {
+.coywolf-cvm .coywolf-cvm-views,
+.coywolf-cvm .coywolf-cvm-date {
 	color: #606060;
+	white-space: nowrap;
 }
 
-.coywolf-cvm-views.is-empty {
+.coywolf-cvm .coywolf-cvm-views.is-empty {
 	display: none;
 }
 
-.screen-reader-text {
+.coywolf-cvm .screen-reader-text {
 	position: absolute;
 	width: 1px;
 	height: 1px;

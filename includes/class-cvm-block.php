@@ -77,6 +77,22 @@ class Coywolf_CVM_Block {
 		$this->stats      = $stats;
 
 		add_action( 'init', array( $this, 'register' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_front' ) );
+	}
+
+	/**
+	 * Enqueue the front-end style/script in the document head when a singular
+	 * post/page contains the block. (block.json's style/viewScript hints don't
+	 * reliably fire for dynamic blocks, so we load them explicitly.)
+	 */
+	public function enqueue_front() {
+		if ( ! $this->cloudflare->is_configured() ) {
+			return;
+		}
+		if ( is_singular() && has_block( 'coywolf/video' ) ) {
+			wp_enqueue_style( 'coywolf-cvm-view' );
+			wp_enqueue_script( 'coywolf-cvm-view' );
+		}
 	}
 
 	/**
@@ -228,6 +244,9 @@ class Coywolf_CVM_Block {
 			: 0;
 
 		$is_oss = ( 'cloudflare' !== $cfg['player'] );
+		// Fallback enqueue (covers non-singular placements / widgets too).
+		wp_enqueue_style( 'coywolf-cvm-view' );
+		wp_enqueue_script( 'coywolf-cvm-view' );
 		if ( $is_oss ) {
 			$this->enqueue_player( $cfg['player'] );
 		}
