@@ -1,0 +1,766 @@
+<?php
+/**
+ * Cloudflare Stream API client.
+ *
+ * Stateless wrapper around the Cloudflare Stream REST API (and the GraphQL
+ * analytics endpoint). Holds no per-request state beyond the cached video list
+ * and the derived customer code. The API token never leaves the server.
+ *
+ * @package CoywolfVideoManager
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Talks to Cloudflare Stream on behalf of the plugin.
+ */
+class Coywolf_CVM_Cloudflare {
+
+	/**
+	 * Cloudflare API v4 base URL.
+	 */
+	const API_BASE = 'https://api.cloudflare.com/client/v4';
+
+	/**
+	 * GraphQL analytics endpoint.
+	 */
+	const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
+
+	/**
+	 * How long the video list is cached, in seconds.
+	 */
+	const LIST_TTL = 300;
+
+	/* --------------------------------------------------------------------- *
+	 * Credentials
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Get the API token (wp-config constant takes precedence over the option).
+	 *
+	 * @return string
+	 */
+	public function get_token() {
+		if ( defined( 'COYWOLF_CVM_API_TOKEN' ) && COYWOLF_CVM_API_TOKEN ) {
+			return (string) COYWOLF_CVM_API_TOKEN;
+		}
+		return (string) get_option( 'coywolf_cvm_api_token', '' );
+	}
+
+	/**
+	 * Get the Cloudflare account ID (wp-config constant takes precedence).
+	 *
+	 * @return string
+	 */
+	public function get_account_id() {
+		if ( defined( 'COYWOLF_CVM_ACCOUNT_ID' ) && COYWOLF_CVM_ACCOUNT_ID ) {
+			return (string) COYWOLF_CVM_ACCOUNT_ID;
+		}
+		return (string) get_option( 'coywolf_cvm_account_id', '' );
+	}
+
+	/**
+	 * Whether the token is fixed by a wp-config constant.
+	 *
+	 * @return bool
+	 */
+	public function token_is_locked() {
+		return defined( 'COYWOLF_CVM_API_TOKEN' ) && (bool) COYWOLF_CVM_API_TOKEN;
+	}
+
+	/**
+	 * Whether the account ID is fixed by a wp-config constant.
+	 *
+	 * @return bool
+	 */
+	public function account_is_locked() {
+		return defined( 'COYWOLF_CVM_ACCOUNT_ID' ) && (bool) COYWOLF_CVM_ACCOUNT_ID;
+	}
+
+	/**
+	 * Whether both credentials are present.
+	 *
+	 * @return bool
+	 */
+	public function is_configured() {
+		return '' !== $this->get_token() && '' !== $this->get_account_id();
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Core request wrapper
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Build a Stream endpoint URL for the configured account.
+	 *
+	 * @param string $suffix Path/query appended after `/stream`.
+	 * @return string
+	 */
+	private function stream_url( $suffix = '' ) {
+		return self::API_BASE . '/accounts/' . rawurlencode( $this->get_account_id() ) . '/stream' . $suffix;
+	}
+
+	/**
+	 * Perform an authenticated request and unwrap Cloudflare's response envelope.
+	 *
+	 * @param string $method HTTP method.
+	 * @param string $url    Absolute URL.
+	 * @param array  $args   Optional: body (array → JSON, or string with raw_body),
+	 *                       headers, timeout.
+	 * @return array|WP_Error Decoded response array, or WP_Error on failure.
+	 */
+	private function request( $method, $url, $args = array() ) {
+		$token = $this->get_token();
+		if ( '' === $token ) {
+			return new WP_Error( 'coywolf_cvm_no_token', __( 'No Cloudflare API token is configured.', 'coywolf-video-manager' ) );
+		}
+
+		$request = array(
+			'method'  => $method,
+			'timeout' => isset( $args['timeout'] ) ? (int) $args['timeout'] : 15,
+			'headers' => array( 'Authorization' => 'Bearer ' . $token ),
+		);
+
+		if ( ! empty( $args['headers'] ) && is_array( $args['headers'] ) ) {
+			$request['headers'] = array_merge( $request['headers'], $args['headers'] );
+		}
+
+		if ( isset( $args['body'] ) ) {
+			if ( is_array( $args['body'] ) && empty( $args['raw_body'] ) ) {
+				$request['headers']['Content-Type'] = 'application/json';
+				$request['body']                    = wp_json_encode( $args['body'] );
+			} else {
+				$request['body'] = $args['body'];
+			}
+		}
+
+		$response = wp_remote_request( $url, $request );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+
+		// JSON endpoints return a { success, errors, result } envelope.
+		if ( is_array( $data ) && array_key_exists( 'success', $data ) ) {
+			if ( $data['success'] ) {
+				return $data;
+			}
+			return new WP_Error(
+				'coywolf_cvm_api_error',
+				$this->error_message( $data ),
+				array(
+					'status' => $code,
+					'errors' => isset( $data['errors'] ) ? $data['errors'] : array(),
+				)
+			);
+		}
+
+		if ( $code >= 200 && $code < 300 ) {
+			return is_array( $data ) ? $data : array();
+		}
+
+		return new WP_Error(
+			'coywolf_cvm_http_error',
+			/* translators: %d: HTTP status code. */
+			sprintf( __( 'Cloudflare returned an unexpected response (HTTP %d).', 'coywolf-video-manager' ), $code ),
+			array( 'status' => $code )
+		);
+	}
+
+	/**
+	 * Flatten Cloudflare's errors array into a readable message.
+	 *
+	 * @param array $data Decoded response.
+	 * @return string
+	 */
+	private function error_message( $data ) {
+		$messages = array();
+		if ( ! empty( $data['errors'] ) && is_array( $data['errors'] ) ) {
+			foreach ( $data['errors'] as $error ) {
+				if ( isset( $error['message'] ) ) {
+					$messages[] = $error['message'];
+				}
+			}
+		}
+		if ( empty( $messages ) ) {
+			return __( 'Cloudflare rejected the request.', 'coywolf-video-manager' );
+		}
+		return implode( ' ', $messages );
+	}
+
+	/**
+	 * Build a multipart/form-data request (used for caption uploads).
+	 *
+	 * @param string $method        HTTP method.
+	 * @param string $url           Absolute URL.
+	 * @param array  $fields        Plain form fields (name => value).
+	 * @param string $file_field    Name of the file field.
+	 * @param string $file_name     Filename to report.
+	 * @param string $file_contents Raw file bytes.
+	 * @param string $file_type     MIME type.
+	 * @return array|WP_Error
+	 */
+	private function multipart_request( $method, $url, $fields, $file_field, $file_name, $file_contents, $file_type ) {
+		$boundary = 'cvm' . wp_generate_password( 24, false );
+		$eol      = "\r\n";
+		$body     = '';
+		foreach ( $fields as $name => $value ) {
+			$body .= '--' . $boundary . $eol;
+			$body .= 'Content-Disposition: form-data; name="' . $name . '"' . $eol . $eol;
+			$body .= $value . $eol;
+		}
+		$body .= '--' . $boundary . $eol;
+		$body .= 'Content-Disposition: form-data; name="' . $file_field . '"; filename="' . $file_name . '"' . $eol;
+		$body .= 'Content-Type: ' . $file_type . $eol . $eol;
+		$body .= $file_contents . $eol;
+		$body .= '--' . $boundary . '--' . $eol;
+
+		return $this->request(
+			$method,
+			$url,
+			array(
+				'body'     => $body,
+				'raw_body' => true,
+				'timeout'  => 30,
+				'headers'  => array( 'Content-Type' => 'multipart/form-data; boundary=' . $boundary ),
+			)
+		);
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Videos
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * List (and optionally search) videos. Cached for LIST_TTL unless forced.
+	 *
+	 * @param array $args limit, search, status, creator, force.
+	 * @return array|WP_Error Array of video objects, or WP_Error.
+	 */
+	public function list_videos( $args = array() ) {
+		if ( ! $this->is_configured() ) {
+			return new WP_Error( 'coywolf_cvm_not_configured', __( 'Connect a Cloudflare account first.', 'coywolf-video-manager' ) );
+		}
+
+		$args  = wp_parse_args(
+			$args,
+			array(
+				'limit'   => 1000,
+				'search'  => '',
+				'status'  => '',
+				'creator' => '',
+				'force'   => false,
+			)
+		);
+		$query = array( 'limit' => min( 1000, max( 1, (int) $args['limit'] ) ) );
+		if ( '' !== $args['search'] ) {
+			$query['search'] = $args['search'];
+		}
+		if ( '' !== $args['status'] ) {
+			$query['status'] = $args['status'];
+		}
+		if ( '' !== $args['creator'] ) {
+			$query['creator'] = $args['creator'];
+		}
+
+		$cache_key = 'coywolf_cvm_list_cache_' . md5( wp_json_encode( $query ) );
+		if ( ! $args['force'] ) {
+			$cached = get_transient( $cache_key );
+			if ( false !== $cached ) {
+				return $cached;
+			}
+		}
+
+		$response = $this->request( 'GET', $this->stream_url( '?' . http_build_query( $query ) ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$result = ( isset( $response['result'] ) && is_array( $response['result'] ) ) ? $response['result'] : array();
+		set_transient( $cache_key, $result, self::LIST_TTL );
+		$this->remember_cache_key( $cache_key );
+		$this->learn_customer_code( $result );
+
+		return $result;
+	}
+
+	/**
+	 * Fetch a single video.
+	 *
+	 * @param string $uid Video UID.
+	 * @return array|WP_Error Video object, or WP_Error.
+	 */
+	public function get_video( $uid ) {
+		$response = $this->request( 'GET', $this->stream_url( '/' . rawurlencode( $uid ) ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Update a video's metadata (name, creator, allowedOrigins,
+	 * requireSignedURLs, thumbnailTimestampPct, …).
+	 *
+	 * @param string $uid    Video UID.
+	 * @param array  $fields Fields to set.
+	 * @return array|WP_Error Updated video object, or WP_Error.
+	 */
+	public function update_video( $uid, $fields ) {
+		$response = $this->request( 'POST', $this->stream_url( '/' . rawurlencode( $uid ) ), array( 'body' => $fields ) );
+		$this->flush_list_cache();
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Delete a video.
+	 *
+	 * @param string $uid Video UID.
+	 * @return true|WP_Error
+	 */
+	public function delete_video( $uid ) {
+		$response = $this->request( 'DELETE', $this->stream_url( '/' . rawurlencode( $uid ) ), array( 'timeout' => 30 ) );
+		$this->flush_list_cache();
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return true;
+	}
+
+	/**
+	 * Create a one-time direct creator upload URL.
+	 *
+	 * @param array $opts maxDurationSeconds (required), meta, creator,
+	 *                    requireSignedURLs, allowedOrigins, thumbnailTimestampPct.
+	 * @return array|WP_Error { uploadURL, uid }.
+	 */
+	public function create_direct_upload( $opts ) {
+		$opts = wp_parse_args( $opts, array( 'maxDurationSeconds' => 3600 ) );
+		$response = $this->request( 'POST', $this->stream_url( '/direct_upload' ), array( 'body' => $opts ) );
+		$this->flush_list_cache();
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Captions
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * List a video's captions.
+	 *
+	 * @param string $uid Video UID.
+	 * @return array|WP_Error
+	 */
+	public function list_captions( $uid ) {
+		$response = $this->request( 'GET', $this->stream_url( '/' . rawurlencode( $uid ) . '/captions' ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) && is_array( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Upload a WebVTT caption file for a language.
+	 *
+	 * @param string $uid          Video UID.
+	 * @param string $lang         BCP-47 language code.
+	 * @param string $vtt_contents Raw VTT bytes.
+	 * @return array|WP_Error
+	 */
+	public function upload_caption( $uid, $lang, $vtt_contents ) {
+		$url = $this->stream_url( '/' . rawurlencode( $uid ) . '/captions/' . rawurlencode( $lang ) );
+		$response = $this->multipart_request( 'PUT', $url, array(), 'file', $lang . '.vtt', $vtt_contents, 'text/vtt' );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Ask Cloudflare to auto-generate captions (speech-to-text) for a language.
+	 *
+	 * @param string $uid  Video UID.
+	 * @param string $lang BCP-47 language code.
+	 * @return array|WP_Error
+	 */
+	public function generate_caption( $uid, $lang ) {
+		$url = $this->stream_url( '/' . rawurlencode( $uid ) . '/captions/' . rawurlencode( $lang ) . '/generate' );
+		$response = $this->request( 'POST', $url, array( 'timeout' => 30 ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Delete a caption language.
+	 *
+	 * @param string $uid  Video UID.
+	 * @param string $lang BCP-47 language code.
+	 * @return true|WP_Error
+	 */
+	public function delete_caption( $uid, $lang ) {
+		$url = $this->stream_url( '/' . rawurlencode( $uid ) . '/captions/' . rawurlencode( $lang ) );
+		$response = $this->request( 'DELETE', $url );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return true;
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Signed URLs
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Create (once) a Stream signing key and store it locally.
+	 *
+	 * @return array|WP_Error Stored key { id, pem }.
+	 */
+	public function create_signing_key() {
+		$response = $this->request( 'POST', $this->stream_url( '/keys' ), array( 'timeout' => 30 ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$result = isset( $response['result'] ) ? $response['result'] : array();
+		if ( empty( $result['id'] ) || empty( $result['pem'] ) ) {
+			return new WP_Error( 'coywolf_cvm_key_failed', __( 'Cloudflare did not return a usable signing key.', 'coywolf-video-manager' ) );
+		}
+		$key = array(
+			'id'  => $result['id'],
+			'pem' => $result['pem'],
+		);
+		update_option( 'coywolf_cvm_signing_key', $key, false );
+		return $key;
+	}
+
+	/**
+	 * Whether a signing key is stored.
+	 *
+	 * @return bool
+	 */
+	public function has_signing_key() {
+		$key = get_option( 'coywolf_cvm_signing_key', array() );
+		return ! empty( $key['id'] ) && ! empty( $key['pem'] );
+	}
+
+	/**
+	 * Mint a signed playback token for a video (RS256 JWT).
+	 *
+	 * @param string $uid Video UID.
+	 * @param int    $ttl Token lifetime in seconds.
+	 * @return string|WP_Error Signed token, or WP_Error.
+	 */
+	public function sign_token( $uid, $ttl = 3600 ) {
+		$key = get_option( 'coywolf_cvm_signing_key', array() );
+		if ( empty( $key['id'] ) || empty( $key['pem'] ) ) {
+			return new WP_Error( 'coywolf_cvm_no_key', __( 'No Cloudflare Stream signing key is available.', 'coywolf-video-manager' ) );
+		}
+		if ( ! function_exists( 'openssl_sign' ) ) {
+			return new WP_Error( 'coywolf_cvm_no_openssl', __( 'The OpenSSL PHP extension is required to sign video URLs.', 'coywolf-video-manager' ) );
+		}
+
+		$pem    = base64_decode( $key['pem'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+		$now    = time();
+		$header = array(
+			'alg' => 'RS256',
+			'kid' => $key['id'],
+		);
+		$claims = array(
+			'sub' => $uid,
+			'kid' => $key['id'],
+			'exp' => $now + (int) $ttl,
+			'nbf' => $now - 60,
+		);
+
+		$segments  = array(
+			$this->b64url( wp_json_encode( $header ) ),
+			$this->b64url( wp_json_encode( $claims ) ),
+		);
+		$signing_input = implode( '.', $segments );
+		$signature     = '';
+		if ( ! openssl_sign( $signing_input, $signature, $pem, OPENSSL_ALGO_SHA256 ) ) {
+			return new WP_Error( 'coywolf_cvm_sign_failed', __( 'Could not sign the video URL.', 'coywolf-video-manager' ) );
+		}
+		$segments[] = $this->b64url( $signature );
+		return implode( '.', $segments );
+	}
+
+	/**
+	 * URL-safe base64 with padding stripped.
+	 *
+	 * @param string $data Raw bytes.
+	 * @return string
+	 */
+	private function b64url( $data ) {
+		return rtrim( strtr( base64_encode( $data ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Analytics (GraphQL)
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Run a GraphQL analytics query.
+	 *
+	 * @param string $query     GraphQL query string.
+	 * @param array  $variables Query variables.
+	 * @return array|WP_Error Decoded `data`, or WP_Error.
+	 */
+	public function graphql( $query, $variables = array() ) {
+		$response = $this->request(
+			'POST',
+			self::GRAPHQL_URL,
+			array(
+				'timeout' => 20,
+				'body'    => array(
+					'query'     => $query,
+					'variables' => $variables,
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		if ( ! empty( $response['errors'] ) ) {
+			$first = is_array( $response['errors'] ) ? reset( $response['errors'] ) : array();
+			$msg   = isset( $first['message'] ) ? $first['message'] : __( 'GraphQL query failed.', 'coywolf-video-manager' );
+			return new WP_Error( 'coywolf_cvm_graphql_error', $msg );
+		}
+		return isset( $response['data'] ) ? $response['data'] : array();
+	}
+
+	/**
+	 * Minutes-viewed per video over the last 30 days, keyed by UID. One GraphQL
+	 * query, cached for an hour. Returns an empty array if the token lacks the
+	 * Account Analytics permission (the feature degrades gracefully).
+	 *
+	 * @return array
+	 */
+	public function minutes_viewed_map() {
+		if ( ! $this->is_configured() ) {
+			return array();
+		}
+		$cache  = 'coywolf_cvm_minutes_map';
+		$cached = get_transient( $cache );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
+		$query = 'query($acct:string!,$since:Time!,$until:Time!){viewer{accounts(filter:{accountTag:$acct}){streamMinutesViewedAdaptiveGroups(limit:1000,filter:{datetime_geq:$since,datetime_leq:$until},orderBy:[sum_minutesViewed_DESC]){sum{minutesViewed} dimensions{uid}}}}}';
+		$vars  = array(
+			'acct'  => $this->get_account_id(),
+			'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - 30 * DAY_IN_SECONDS ),
+			'until' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+		);
+
+		$data = $this->graphql( $query, $vars );
+		$map  = array();
+		if ( ! is_wp_error( $data ) && isset( $data['viewer']['accounts'][0]['streamMinutesViewedAdaptiveGroups'] ) ) {
+			foreach ( $data['viewer']['accounts'][0]['streamMinutesViewedAdaptiveGroups'] as $group ) {
+				if ( isset( $group['dimensions']['uid'] ) ) {
+					$map[ $group['dimensions']['uid'] ] = (int) round( $group['sum']['minutesViewed'] );
+				}
+			}
+		}
+		set_transient( $cache, $map, HOUR_IN_SECONDS );
+		return $map;
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Playback URLs + customer code
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * The customer code that prefixes playback hostnames, derived from the API
+	 * and cached. Empty string until a ready video reveals it.
+	 *
+	 * @return string
+	 */
+	public function customer_code() {
+		$code = (string) get_option( 'coywolf_cvm_customer_code', '' );
+		if ( '' !== $code ) {
+			return $code;
+		}
+		if ( $this->is_configured() ) {
+			$list = $this->list_videos( array( 'limit' => 50 ) );
+			if ( ! is_wp_error( $list ) ) {
+				$this->learn_customer_code( $list );
+			}
+		}
+		return (string) get_option( 'coywolf_cvm_customer_code', '' );
+	}
+
+	/**
+	 * Inspect video objects for a customer-coded playback URL and cache the code.
+	 *
+	 * @param array $videos Video objects.
+	 */
+	private function learn_customer_code( $videos ) {
+		if ( '' !== (string) get_option( 'coywolf_cvm_customer_code', '' ) || ! is_array( $videos ) ) {
+			return;
+		}
+		foreach ( $videos as $video ) {
+			$candidates = array(
+				isset( $video['thumbnail'] ) ? $video['thumbnail'] : '',
+				isset( $video['preview'] ) ? $video['preview'] : '',
+				isset( $video['playback']['hls'] ) ? $video['playback']['hls'] : '',
+			);
+			foreach ( $candidates as $url ) {
+				if ( $url && preg_match( '#//customer-([a-z0-9]+)\.cloudflarestream\.com#i', $url, $m ) ) {
+					update_option( 'coywolf_cvm_customer_code', $m[1], false );
+					return;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Base playback URL for a playback id (a UID, or a signed token).
+	 *
+	 * @param string $playback_id UID or signed token.
+	 * @return string No trailing slash.
+	 */
+	private function playback_base( $playback_id ) {
+		$code = $this->customer_code();
+		if ( '' !== $code ) {
+			return 'https://customer-' . $code . '.cloudflarestream.com/' . rawurlencode( $playback_id );
+		}
+		// Customer-code-independent fallback until a ready video reveals the code.
+		return 'https://videodelivery.net/' . rawurlencode( $playback_id );
+	}
+
+	/**
+	 * Iframe embed URL.
+	 *
+	 * @param string $playback_id UID or signed token.
+	 * @param array  $params      Query params (autoplay, muted, …).
+	 * @return string
+	 */
+	public function iframe_url( $playback_id, $params = array() ) {
+		$code = $this->customer_code();
+		if ( '' !== $code ) {
+			$url = 'https://customer-' . $code . '.cloudflarestream.com/' . rawurlencode( $playback_id ) . '/iframe';
+		} else {
+			$url = 'https://iframe.videodelivery.net/' . rawurlencode( $playback_id );
+		}
+		$params = array_filter( $params, array( $this, 'is_present' ) );
+		if ( ! empty( $params ) ) {
+			$url .= '?' . http_build_query( $params );
+		}
+		return $url;
+	}
+
+	/**
+	 * HLS manifest URL.
+	 *
+	 * @param string $playback_id UID or signed token.
+	 * @return string
+	 */
+	public function hls_url( $playback_id ) {
+		return $this->playback_base( $playback_id ) . '/manifest/video.m3u8';
+	}
+
+	/**
+	 * Thumbnail (poster) URL.
+	 *
+	 * @param string $playback_id UID or signed token.
+	 * @param array  $params      time, height, width, fit.
+	 * @return string
+	 */
+	public function thumbnail_url( $playback_id, $params = array() ) {
+		$url    = $this->playback_base( $playback_id ) . '/thumbnails/thumbnail.jpg';
+		$params = array_filter( $params, array( $this, 'is_present' ) );
+		if ( ! empty( $params ) ) {
+			$url .= '?' . http_build_query( $params );
+		}
+		return $url;
+	}
+
+	/**
+	 * Public watch page URL (used as the block's static fallback link).
+	 *
+	 * @param string $playback_id UID or signed token.
+	 * @return string
+	 */
+	public function watch_url( $playback_id ) {
+		$code = $this->customer_code();
+		if ( '' !== $code ) {
+			return 'https://customer-' . $code . '.cloudflarestream.com/' . rawurlencode( $playback_id ) . '/watch';
+		}
+		return 'https://iframe.videodelivery.net/' . rawurlencode( $playback_id );
+	}
+
+	/**
+	 * array_filter callback: keep values that are not null/empty-string.
+	 *
+	 * @param mixed $value Value.
+	 * @return bool
+	 */
+	private function is_present( $value ) {
+		return null !== $value && '' !== $value;
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Connection + cache
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Verify the stored credentials with a cheap list call.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function test_connection() {
+		if ( '' === $this->get_token() ) {
+			return new WP_Error( 'coywolf_cvm_no_token', __( 'Enter an API token.', 'coywolf-video-manager' ) );
+		}
+		if ( '' === $this->get_account_id() ) {
+			return new WP_Error( 'coywolf_cvm_no_account', __( 'Enter your Cloudflare Account ID.', 'coywolf-video-manager' ) );
+		}
+		$response = $this->request( 'GET', $this->stream_url( '?limit=1' ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return true;
+	}
+
+	/**
+	 * Remember a list-cache transient key so it can be flushed later.
+	 *
+	 * @param string $key Transient key.
+	 */
+	private function remember_cache_key( $key ) {
+		$keys = get_option( 'coywolf_cvm_list_keys', array() );
+		if ( ! is_array( $keys ) ) {
+			$keys = array();
+		}
+		if ( ! in_array( $key, $keys, true ) ) {
+			$keys[] = $key;
+			update_option( 'coywolf_cvm_list_keys', $keys, false );
+		}
+	}
+
+	/**
+	 * Drop every cached video list.
+	 */
+	public function flush_list_cache() {
+		$keys = get_option( 'coywolf_cvm_list_keys', array() );
+		if ( is_array( $keys ) ) {
+			foreach ( $keys as $key ) {
+				delete_transient( $key );
+			}
+		}
+		delete_option( 'coywolf_cvm_list_keys' );
+	}
+}

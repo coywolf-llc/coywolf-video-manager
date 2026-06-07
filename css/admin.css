@@ -1,0 +1,63 @@
+/* Coywolf Video Manager — admin styles. */
+
+.column-uid code {
+	font-size: 11px;
+	word-break: break-all;
+}
+
+.column-uid,
+.column-status,
+.column-plays,
+.column-likes,
+.column-posts,
+.column-pages,
+.column-minutes {
+	width: 9%;
+}
+
+.coywolf-cvm-edit-field {
+	margin-bottom: 1.2em;
+	max-width: 640px;
+}
+
+.coywolf-cvm-edit-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.3em;
+}
+
+.coywolf-cvm-poster-preview img {
+	max-width: 320px;
+	height: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.coywolf-cvm-uploader {
+	max-width: 640px;
+}
+
+.coywolf-cvm-progress {
+	background: #f0f0f1;
+	border-radius: 4px;
+	height: 18px;
+	overflow: hidden;
+	margin: 0.8em 0;
+	display: none;
+}
+
+.coywolf-cvm-progress-bar {
+	background: #2271b1;
+	height: 100%;
+	width: 0;
+	transition: width 0.2s ease;
+}
+
+.coywolf-cvm-captions-list {
+	margin: 0.5em 0;
+}
+
+.coywolf-cvm-captions-list li {
+	padding: 0.3em 0;
+	border-bottom: 1px solid #f0f0f1;
+}

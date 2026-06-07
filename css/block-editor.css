@@ -1,0 +1,69 @@
+/* Coywolf Video Manager — block editor styles. */
+
+.coywolf-cvm-picker .components-modal__content {
+	min-width: min( 80vw, 760px );
+}
+
+.coywolf-cvm-picker-search {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.coywolf-cvm-picker-search .components-base-control {
+	flex: 1;
+}
+
+.coywolf-cvm-picker-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
+	gap: 12px;
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.coywolf-cvm-picker-item {
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+	overflow: hidden;
+	text-align: left;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.coywolf-cvm-picker-item:hover,
+.coywolf-cvm-picker-item:focus {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.coywolf-cvm-picker-item img,
+.coywolf-cvm-picker-noimg {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	background: #1d2327;
+}
+
+.coywolf-cvm-picker-name {
+	padding: 6px 8px;
+	font-size: 12px;
+	line-height: 1.3;
+	word-break: break-word;
+}
+
+.coywolf-cvm-picker-badge {
+	margin: 0 8px 8px;
+	padding: 1px 6px;
+	font-size: 10px;
+	text-transform: uppercase;
+	color: #663d00;
+	background: #fcf0d4;
+	border-radius: 3px;
+	align-self: flex-start;
+}
