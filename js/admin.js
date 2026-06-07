@@ -127,8 +127,8 @@
 			saveBtn.disabled = true;
 			saveStatus.textContent = '…';
 			rest( '/videos/' + encodeURIComponent( uid ), 'POST', data ).then( function () {
-				saveBtn.disabled = false;
-				saveStatus.textContent = '✓ ' + ( i18n.saved || 'Saved.' );
+				// Back to All Videos on success.
+				window.location = listUrl + '&coywolf_cvm_saved=1';
 			} ).catch( function ( e ) {
 				saveBtn.disabled = false;
 				saveStatus.textContent = '✗ ' + errMsg( e );
@@ -228,22 +228,60 @@
 			} );
 		} );
 
-		// Delete.
+		// Delete — confirmed via a modal dialog.
 		var deleteBtn = document.getElementById( 'cvm-delete' );
-		if ( deleteBtn ) {
-			deleteBtn.addEventListener( 'click', function () {
-				if ( ! window.confirm( i18n.confirmDelete || 'Delete?' ) ) {
-					return;
+		var modal = document.getElementById( 'cvm-delete-modal' );
+		if ( deleteBtn && modal ) {
+			var cancelBtn = document.getElementById( 'cvm-delete-cancel' );
+			var confirmBtn = document.getElementById( 'cvm-delete-confirm' );
+
+			var closeModal = function () {
+				modal.hidden = true;
+				deleteBtn.focus();
+			};
+			var openModal = function () {
+				modal.hidden = false;
+				if ( cancelBtn ) {
+					cancelBtn.focus();
 				}
-				deleteBtn.disabled = true;
-				saveStatus.textContent = '…';
-				rest( '/videos/' + encodeURIComponent( uid ), 'DELETE' ).then( function () {
-					window.location = listUrl + '&coywolf_cvm_deleted=1';
-				} ).catch( function ( e ) {
-					deleteBtn.disabled = false;
-					saveStatus.textContent = '✗ ' + errMsg( e );
-				} );
+			};
+
+			deleteBtn.addEventListener( 'click', openModal );
+			if ( cancelBtn ) {
+				cancelBtn.addEventListener( 'click', closeModal );
+			}
+			// Close on overlay click or Escape.
+			modal.addEventListener( 'click', function ( e ) {
+				if ( e.target === modal ) {
+					closeModal();
+				}
 			} );
+			document.addEventListener( 'keydown', function ( e ) {
+				if ( 'Escape' === e.key && ! modal.hidden ) {
+					closeModal();
+				}
+			} );
+
+			if ( confirmBtn ) {
+				confirmBtn.addEventListener( 'click', function () {
+					confirmBtn.disabled = true;
+					if ( cancelBtn ) {
+						cancelBtn.disabled = true;
+					}
+					confirmBtn.textContent = i18n.deleting || 'Deleting…';
+					rest( '/videos/' + encodeURIComponent( uid ), 'DELETE' ).then( function () {
+						window.location = listUrl + '&coywolf_cvm_deleted=1';
+					} ).catch( function ( e ) {
+						closeModal();
+						confirmBtn.disabled = false;
+						if ( cancelBtn ) {
+							cancelBtn.disabled = false;
+						}
+						confirmBtn.textContent = i18n.deleteConfirm || 'Delete';
+						saveStatus.textContent = '✗ ' + errMsg( e );
+					} );
+				} );
+			}
 		}
 
 		wireCaptions( root, uid );

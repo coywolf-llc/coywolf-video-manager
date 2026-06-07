@@ -92,6 +92,45 @@
 	border-color: #b32d2e;
 }
 
+/* Edit Video: delete confirmation modal. */
+.coywolf-cvm-modal-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba( 0, 0, 0, 0.5 );
+	z-index: 100000;
+}
+
+.coywolf-cvm-modal-overlay[hidden] {
+	display: none;
+}
+
+.coywolf-cvm-modal {
+	max-width: 460px;
+	width: 100%;
+	padding: 24px 28px;
+	background: #fff;
+	border-radius: 6px;
+	box-shadow: 0 8px 30px rgba( 0, 0, 0, 0.3 );
+}
+
+.coywolf-cvm-modal h2 {
+	margin: 0 0 0.6em;
+}
+
+.coywolf-cvm-modal p {
+	margin: 0 0 1.2em;
+}
+
+.coywolf-cvm-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5em;
+}
+
 /* Edit Video: click-to-copy Video ID. */
 .coywolf-cvm-copy-id {
 	display: inline-flex;
