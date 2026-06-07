@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,6 +72,9 @@ This plugin connects WordPress to Cloudflare Stream, a third-party service, on y
 4. Settings.
 
 == Changelog ==
+
+= 1.0.3 =
+* Outline like icon that fills when liked, plus appearance settings (#4).
 
 = 1.0.2 =
 * Load and harden the front-end CSS so it overrides the theme (#3).
