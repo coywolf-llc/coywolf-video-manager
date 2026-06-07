@@ -3,7 +3,7 @@
  * Plugin Name:       Coywolf Video Manager
  * Plugin URI:        https://coywolf.com/notes/coywolf-video-manager/
  * Description:        Manage, embed, and upload Cloudflare Stream videos from the WordPress admin — a searchable video block, play and like tracking, schema markup, captions, and a video XML sitemap.
- * Version:           1.0.10
+ * Version:           1.0.11
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            Coywolf
