@@ -124,13 +124,6 @@ class Coywolf_CVM_Block {
 			wp_add_inline_style( 'coywolf-cvm-view', $custom_css );
 		}
 
-		// Bundled open-source players (enqueued only when the block uses them).
-		wp_register_script( 'coywolf-cvm-hls', COYWOLF_CVM_URL . 'vendor/hls/hls.min.js', array(), '1.5.17', true );
-		wp_register_script( 'coywolf-cvm-plyr', COYWOLF_CVM_URL . 'vendor/plyr/plyr.min.js', array(), '3.7.8', true );
-		wp_register_style( 'coywolf-cvm-plyr', COYWOLF_CVM_URL . 'vendor/plyr/plyr.css', array(), '3.7.8' );
-		wp_register_script( 'coywolf-cvm-videojs', COYWOLF_CVM_URL . 'vendor/videojs/video.min.js', array(), '8.17.4', true );
-		wp_register_style( 'coywolf-cvm-videojs', COYWOLF_CVM_URL . 'vendor/videojs/video-js.min.css', array(), '8.17.4' );
-
 		wp_add_inline_script(
 			'coywolf-cvm-block',
 			'window.coywolfCVMBlock = ' . wp_json_encode( $this->editor_data() ) . ';',
@@ -321,25 +314,18 @@ class Coywolf_CVM_Block {
 		$params['title'] = $name;
 
 		$iframe_url = $this->cloudflare->iframe_url( $playback_id, $params );
-		$hls_url    = $this->cloudflare->hls_url( $playback_id );
 		$counts     = $this->stats->get_counts( $uid );
 
 		$maxwidth = ( 'maxwidth' === ( isset( $attributes['sizeMode'] ) ? $attributes['sizeMode'] : 'responsive' ) )
 			? max( 100, (int) ( isset( $attributes['maxWidth'] ) ? $attributes['maxWidth'] : 800 ) )
 			: 0;
 
-		$is_oss = ( 'cloudflare' !== $cfg['player'] );
 		// Fallback enqueue (covers non-singular placements / widgets too).
 		wp_enqueue_style( 'coywolf-cvm-view' );
 		wp_enqueue_script( 'coywolf-cvm-view' );
-		if ( $is_oss ) {
-			$this->enqueue_player( $cfg['player'] );
-		}
-		$mode = ( $is_oss ? 'oss-' : '' ) . ( $cfg['lazy'] ? 'lazy' : 'inline' );
+		$mode = $cfg['lazy'] ? 'lazy' : 'inline';
 
-		$player = $is_oss
-			? $this->oss_markup( $hls_url, $poster, $name, $cfg, $pct, $maxwidth )
-			: $this->iframe_markup( $iframe_url, $name, $cfg, $pct, $maxwidth, $poster );
+		$player = $this->iframe_markup( $iframe_url, $name, $cfg, $pct, $maxwidth, $poster );
 
 		$classes = 'coywolf-cvm';
 		$scheme  = (string) $this->settings->get( 'color_scheme' );
@@ -348,10 +334,9 @@ class Coywolf_CVM_Block {
 		}
 
 		$attrs = array(
-			'class'       => $classes,
-			'data-uid'    => $uid,
-			'data-player' => $cfg['player'],
-			'data-mode'   => $mode,
+			'class'     => $classes,
+			'data-uid'  => $uid,
+			'data-mode' => $mode,
 		);
 		// Per-block alignment override (else the Settings default applies).
 		if ( isset( $attributes['contentAlign'] ) && in_array( $attributes['contentAlign'], array( 'left', 'center', 'right' ), true ) ) {
@@ -403,58 +388,6 @@ class Coywolf_CVM_Block {
 			return '<div class="coywolf-cvm-bound" style="margin:0 auto;max-width:' . (int) $maxwidth . 'px;">' . $frame . '</div>';
 		}
 		return $frame;
-	}
-
-	/**
-	 * Open-source player markup: a <video> fed the HLS manifest by view.js.
-	 *
-	 * @param string $hls_url  HLS manifest URL.
-	 * @param string $poster   Poster URL.
-	 * @param string $name     Video name.
-	 * @param array  $cfg      Resolved config.
-	 * @param float  $pct      padding-top percentage (used for aspect-ratio).
-	 * @param int    $maxwidth Max width in px, or 0 for full width.
-	 * @return string
-	 */
-	private function oss_markup( $hls_url, $poster, $name, $cfg, $pct, $maxwidth ) {
-		$classes = 'coywolf-cvm-video';
-		if ( 'videojs' === $cfg['player'] ) {
-			$classes .= ' video-js';
-		}
-		$video  = '<video class="' . esc_attr( $classes ) . '" playsinline';
-		$video .= $cfg['controls'] ? ' controls' : '';
-		$video .= $cfg['loop'] ? ' loop' : '';
-		$video .= ( $cfg['autoplay'] || $cfg['mute'] ) ? ' muted' : '';
-		$video .= $cfg['autoplay'] ? ' autoplay' : '';
-		$video .= ' preload="' . esc_attr( $cfg['preload'] ) . '"';
-		if ( '' !== $poster ) {
-			$video .= ' poster="' . esc_url( $poster ) . '"';
-		}
-		$video .= ' data-hls="' . esc_url( $hls_url ) . '"';
-		$video .= ' title="' . esc_attr( $name ) . '"';
-		$video .= ' style="width:100%;aspect-ratio:100 / ' . esc_attr( $pct ) . ';"';
-		$video .= '></video>';
-
-		if ( $maxwidth > 0 ) {
-			return '<div class="coywolf-cvm-bound" style="margin:0 auto;max-width:' . (int) $maxwidth . 'px;">' . $video . '</div>';
-		}
-		return $video;
-	}
-
-	/**
-	 * Enqueue the bundled assets for an open-source player.
-	 *
-	 * @param string $player plyr|videojs.
-	 */
-	private function enqueue_player( $player ) {
-		if ( 'plyr' === $player ) {
-			wp_enqueue_style( 'coywolf-cvm-plyr' );
-			wp_enqueue_script( 'coywolf-cvm-hls' );
-			wp_enqueue_script( 'coywolf-cvm-plyr' );
-		} elseif ( 'videojs' === $player ) {
-			wp_enqueue_style( 'coywolf-cvm-videojs' );
-			wp_enqueue_script( 'coywolf-cvm-videojs' );
-		}
 	}
 
 	/**
@@ -638,7 +571,6 @@ class Coywolf_CVM_Block {
 	 */
 	private function resolve( $attributes ) {
 		$cfg = array(
-			'player'    => $this->settings->get( 'player' ),
 			'like_icon' => $this->settings->get( 'like_icon' ),
 		);
 		foreach ( $this->inherit_map as $attr => $setting_key ) {

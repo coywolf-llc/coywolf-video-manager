@@ -16,7 +16,7 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 ### Features
 
 - **Video block** — search your entire Stream library and embed a responsive video in a `<figure>` with the name in a `<figcaption>`. Per-block control over size (responsive or max-width), poster image (by timestamp or from the Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
-- **Three players** — the Cloudflare Stream player by default, plus bundled open-source [Plyr](https://plyr.io/) and [Video.js](https://videojs.com/) options, all playing Cloudflare's adaptive HLS.
+- **Cloudflare Stream player** — the official Stream player, with an optional play-button accent color.
 - **Likes, views & upload date** — a YouTube-style row under each video: a like button, the local view count, and when the video was uploaded to Cloudflare. Cloudflare's API doesn't expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
 - **Video schema** — automatic `VideoObject` JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts.
 - **All Videos screen** — a sortable table of every video with views, likes, and how many posts and pages embed each one, linking through to filtered views.
@@ -44,7 +44,7 @@ Paste both into **Videos → Settings** and use **Test connection** to verify. T
 1. Upload the plugin to `wp-content/plugins/coywolf-video-manager` or install the zip from **Plugins → Add New → Upload Plugin**.
 2. Activate it.
 3. Go to **Videos → Settings**, enter your Cloudflare Account ID and API token, and click **Test connection**.
-4. Configure your defaults (player, embed options, views/likes, sitemap), then add the **Video** block to a post.
+4. Configure your defaults (embed options, views/likes, appearance, sitemap), then add the **Coywolf Video** block to a post.
 
 ## Frequently Asked Questions
 
@@ -65,8 +65,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 This plugin connects WordPress to **Cloudflare Stream**, a third-party service, on your behalf:
 
 - The WordPress server calls the **Cloudflare API** (`api.cloudflare.com`) using your API token to list, edit, upload, and manage videos. See Cloudflare's [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
-- When the Cloudflare player is used, the front end loads the Stream player SDK from `embed.cloudflarestream.com` and streams video from `cloudflarestream.com` / `videodelivery.net`.
-- The bundled **Plyr** (MIT) and **Video.js** (Apache-2.0) players and **hls.js** (Apache-2.0) are served locally from the plugin and make no third-party calls themselves; the video stream still comes from Cloudflare.
+- On the front end, the Cloudflare Stream player SDK loads from `embed.cloudflarestream.com` and video streams from `cloudflarestream.com` / `videodelivery.net`.
 
 No data is sent anywhere except Cloudflare, and only as required to manage and play your videos.
 

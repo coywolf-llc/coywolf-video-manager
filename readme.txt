@@ -17,7 +17,7 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 Features:
 
 * Video block — search your entire Stream library and embed a responsive video in a figure/figcaption, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
-* Three players — the Cloudflare Stream player by default, plus bundled open-source Plyr and Video.js options, all playing Cloudflare's adaptive HLS.
+* Cloudflare Stream player — the official Stream player, with an optional play-button accent color.
 * Likes, views & upload date — a YouTube-style row under each video. Cloudflare's API does not expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
 * Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts.
 * All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
@@ -56,7 +56,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 == Privacy & third-party services ==
 
-This plugin connects WordPress to Cloudflare Stream, a third-party service, on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. When the Cloudflare player is used, the front end loads the Stream player SDK from embed.cloudflarestream.com and streams video from cloudflarestream.com / videodelivery.net. The bundled Plyr (MIT), Video.js (Apache-2.0), and hls.js (Apache-2.0) players are served locally and make no third-party calls themselves. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
+This plugin connects WordPress to Cloudflare Stream, a third-party service, on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
 
 == Styling with CSS ==
 

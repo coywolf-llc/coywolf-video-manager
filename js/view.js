@@ -130,70 +130,6 @@
 		}
 	}
 
-	/* ----- Open-source players (Plyr / Video.js) ----- */
-
-	function attachHls( video, hls ) {
-		if ( ! hls ) {
-			return;
-		}
-		if ( video.canPlayType( 'application/vnd.apple.mpegurl' ) ) {
-			video.src = hls; // Safari plays HLS natively.
-			return;
-		}
-		if ( window.Hls && window.Hls.isSupported() ) {
-			var h = new window.Hls();
-			h.loadSource( hls );
-			h.attachMedia( video );
-		} else {
-			video.src = hls;
-		}
-	}
-
-	function initOSS( video, figure ) {
-		var player = figure.getAttribute( 'data-player' );
-		var hls = video.getAttribute( 'data-hls' );
-		var counter = viewCounter( figure );
-
-		if ( 'videojs' === player && window.videojs ) {
-			var vp = window.videojs( video, { fluid: true } );
-			vp.src( { src: hls, type: 'application/x-mpegURL' } );
-			vp.on( 'timeupdate', function () {
-				counter( vp.currentTime() );
-			} );
-			return;
-		}
-
-		attachHls( video, hls );
-		if ( 'plyr' === player && window.Plyr ) {
-			try {
-				new window.Plyr( video ); // eslint-disable-line no-new
-			} catch ( e ) {} // eslint-disable-line no-empty
-		}
-		video.addEventListener( 'timeupdate', function () {
-			counter( video.currentTime );
-		} );
-	}
-
-	function activateOSS( figure, lazy ) {
-		var video = figure.querySelector( 'video.coywolf-cvm-video' );
-		if ( ! video ) {
-			return;
-		}
-		if ( lazy ) {
-			var io = new IntersectionObserver( function ( entries ) {
-				forEach( entries, function ( entry ) {
-					if ( entry.isIntersecting ) {
-						initOSS( video, figure );
-						io.disconnect();
-					}
-				} );
-			}, { rootMargin: '200px' } );
-			io.observe( figure );
-		} else {
-			initOSS( video, figure );
-		}
-	}
-
 	/* ----- Likes ----- */
 
 	function setLikeCount( btn, n ) {
@@ -261,16 +197,7 @@
 
 	function init() {
 		forEach( document.querySelectorAll( '.coywolf-cvm' ), function ( figure ) {
-			var mode = figure.getAttribute( 'data-mode' ) || 'inline';
-			if ( 'oss-inline' === mode ) {
-				activateOSS( figure, false );
-			} else if ( 'oss-lazy' === mode ) {
-				activateOSS( figure, true );
-			} else if ( 'lazy' === mode ) {
-				activateCloudflare( figure, true );
-			} else {
-				activateCloudflare( figure, false );
-			}
+			activateCloudflare( figure, 'lazy' === figure.getAttribute( 'data-mode' ) );
 		} );
 		wireLikes();
 	}

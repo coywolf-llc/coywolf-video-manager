@@ -60,11 +60,6 @@
 	margin: 0;
 }
 
-.coywolf-cvm .coywolf-cvm-video {
-	display: block;
-	background: #000;
-}
-
 /* Name & description. The figcaption sets the shared size/color/alignment;
    the name and description carry their own font weights. */
 .coywolf-cvm figcaption.coywolf-cvm-title {

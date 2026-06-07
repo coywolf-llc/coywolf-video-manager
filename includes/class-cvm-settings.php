@@ -69,7 +69,6 @@ class Coywolf_CVM_Settings {
 	 */
 	public static function defaults() {
 		return array(
-			'player'              => 'cloudflare',
 			'player_color'        => '',
 			'controls'            => true,
 			'autoplay'            => false,
@@ -229,7 +228,6 @@ class Coywolf_CVM_Settings {
 		);
 
 		add_settings_section( 'coywolf_cvm_player', __( 'Player', 'coywolf-video-manager' ), '__return_false', self::PAGE );
-		add_settings_field( 'player', __( 'Video player', 'coywolf-video-manager' ), array( $this, 'render_player_field' ), self::PAGE, 'coywolf_cvm_player' );
 		add_settings_field( 'player_color', __( 'Play button', 'coywolf-video-manager' ), array( $this, 'render_player_color_field' ), self::PAGE, 'coywolf_cvm_player' );
 
 		add_settings_section( 'coywolf_cvm_embed', __( 'Embed defaults', 'coywolf-video-manager' ), array( $this, 'render_embed_intro' ), self::PAGE );
@@ -290,8 +288,6 @@ class Coywolf_CVM_Settings {
 		$defaults = self::defaults();
 		$clean    = array();
 
-		$players          = array( 'cloudflare', 'plyr', 'videojs' );
-		$clean['player']       = ( isset( $input['player'] ) && in_array( $input['player'], $players, true ) ) ? $input['player'] : $defaults['player'];
 		$clean['player_color'] = $this->sanitize_hex( isset( $input['player_color'] ) ? $input['player_color'] : '' );
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
@@ -434,24 +430,6 @@ class Coywolf_CVM_Settings {
 			esc_attr( $has ? __( '•••••••• saved — leave blank to keep', 'coywolf-video-manager' ) : __( 'Paste your API token', 'coywolf-video-manager' ) )
 		);
 		echo '<p class="description">' . esc_html__( 'Stored server-side and never sent to the browser.', 'coywolf-video-manager' ) . '</p>';
-	}
-
-	/**
-	 * Player choice field.
-	 */
-	public function render_player_field() {
-		$value   = $this->get( 'player' );
-		$choices = array(
-			'cloudflare' => __( 'Cloudflare Stream player (default)', 'coywolf-video-manager' ),
-			'plyr'       => __( 'Plyr (open source)', 'coywolf-video-manager' ),
-			'videojs'    => __( 'Video.js (open source)', 'coywolf-video-manager' ),
-		);
-		echo '<select name="' . esc_attr( self::OPTION ) . '[player]">';
-		foreach ( $choices as $key => $label ) {
-			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $value, $key, false ), esc_html( $label ) );
-		}
-		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'All three play Cloudflare’s adaptive HLS. Plyr and Video.js are bundled with the plugin.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**
