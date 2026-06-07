@@ -41,6 +41,8 @@ define( 'COYWOLF_CVM_URL', plugin_dir_url( __FILE__ ) );
 
 /* wporg-strip:start — GitHub self-updater (removed from the WordPress.org build) */
 require_once __DIR__ . '/includes/class-github-updater.php';
+// Flags this as the GitHub distribution (stripped from the WordPress.org build).
+define( 'COYWOLF_CVM_GITHUB_BUILD', true );
 /* wporg-strip:end */
 require_once __DIR__ . '/includes/class-cvm-cloudflare.php';
 require_once __DIR__ . '/includes/class-cvm-stats.php';

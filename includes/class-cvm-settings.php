@@ -643,8 +643,8 @@ class Coywolf_CVM_Settings {
 		) . '</p>';
 
 		// Link the Robots.txt Manager to the matching distribution of this plugin
-		// (GitHub build = self-updater present; WordPress.org build = stripped).
-		$robots_url = class_exists( 'Coywolf_CVM_GitHub_Updater' )
+		// (the GITHUB_BUILD flag is stripped from the WordPress.org variant).
+		$robots_url = defined( 'COYWOLF_CVM_GITHUB_BUILD' )
 			? 'https://github.com/coywolf-llc/coywolf-robots-txt-manager'
 			: 'https://wordpress.org/plugins/coywolf-robots-txt-manager/';
 		echo '<p class="description">' . wp_kses(
