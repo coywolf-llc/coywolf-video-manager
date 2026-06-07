@@ -84,6 +84,15 @@ class Coywolf_CVM_Settings {
 			'sitemap_enabled'     => false,
 			'analytics_enabled'   => false,
 			'signed_urls_enabled' => false,
+			// Appearance.
+			'title_color'         => '',
+			'title_size'          => 0,
+			'title_weight'        => '700',
+			'title_align'         => 'left',
+			'like_color'          => '#0f0f0f',
+			'like_bg'             => '#f2f2f2',
+			'meta_color'          => '#606060',
+			'meta_size'           => 0,
 		);
 	}
 
@@ -194,6 +203,11 @@ class Coywolf_CVM_Settings {
 		add_settings_section( 'coywolf_cvm_engagement', __( 'Views & likes', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'engagement', __( 'Engagement', 'coywolf-video-manager' ), array( $this, 'render_engagement_field' ), self::PAGE, 'coywolf_cvm_engagement' );
 
+		add_settings_section( 'coywolf_cvm_appearance', __( 'Appearance', 'coywolf-video-manager' ), array( $this, 'render_appearance_intro' ), self::PAGE );
+		add_settings_field( 'appearance_title', __( 'Video name', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+
 		add_settings_section( 'coywolf_cvm_advanced', __( 'Sitemap, analytics & private videos', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'advanced', __( 'Advanced', 'coywolf-video-manager' ), array( $this, 'render_advanced_field' ), self::PAGE, 'coywolf_cvm_advanced' );
 	}
@@ -247,7 +261,34 @@ class Coywolf_CVM_Settings {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
+		// Appearance.
+		$clean['title_color'] = $this->sanitize_hex( isset( $input['title_color'] ) ? $input['title_color'] : '' );
+		$clean['like_color']  = $this->sanitize_hex( isset( $input['like_color'] ) ? $input['like_color'] : '' );
+		$clean['like_bg']     = $this->sanitize_hex( isset( $input['like_bg'] ) ? $input['like_bg'] : '' );
+		$clean['meta_color']  = $this->sanitize_hex( isset( $input['meta_color'] ) ? $input['meta_color'] : '' );
+		$clean['title_size']  = isset( $input['title_size'] ) ? min( 96, absint( $input['title_size'] ) ) : 0;
+		$clean['meta_size']   = isset( $input['meta_size'] ) ? min( 96, absint( $input['meta_size'] ) ) : 0;
+
+		$weights               = array( '400', '500', '600', '700' );
+		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
+		$aligns                = array( 'left', 'center', 'right' );
+		$clean['title_align']  = ( isset( $input['title_align'] ) && in_array( $input['title_align'], $aligns, true ) ) ? $input['title_align'] : 'left';
+
 		return $clean;
+	}
+
+	/**
+	 * Sanitize a hex color (#rgb or #rrggbb); empty string if invalid/blank.
+	 *
+	 * @param mixed $value Submitted value.
+	 * @return string
+	 */
+	private function sanitize_hex( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return '';
+		}
+		return preg_match( '/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $value ) ? $value : '';
 	}
 
 	/**
@@ -389,6 +430,97 @@ class Coywolf_CVM_Settings {
 		$this->checkbox( 'plays_in_schema', __( 'Include view count in VideoObject schema', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_enabled', __( 'Show a like button', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_show_count', __( 'Show the number of likes', 'coywolf-video-manager' ) );
+	}
+
+	/**
+	 * Appearance section intro.
+	 */
+	public function render_appearance_intro() {
+		echo '<p>' . esc_html__( 'Style the video name, like button, and views/date text shown beneath each video. Leave a color empty to inherit your theme.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
+	 * Video-name (figcaption) style fields.
+	 */
+	public function render_appearance_title_field() {
+		$this->color_input( 'title_color', __( 'Text color', 'coywolf-video-manager' ) );
+		$this->size_input( 'title_size', __( 'Font size', 'coywolf-video-manager' ), __( 'theme default', 'coywolf-video-manager' ) );
+
+		$weight  = (string) $this->get( 'title_weight' );
+		$weights = array(
+			'400' => __( 'Normal', 'coywolf-video-manager' ),
+			'500' => __( 'Medium', 'coywolf-video-manager' ),
+			'600' => __( 'Semi-bold', 'coywolf-video-manager' ),
+			'700' => __( 'Bold', 'coywolf-video-manager' ),
+		);
+		echo '<p><label>' . esc_html__( 'Font weight', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_weight]">';
+		foreach ( $weights as $key => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $weight, $key, false ), esc_html( $label ) );
+		}
+		echo '</select></label></p>';
+
+		$align  = (string) $this->get( 'title_align' );
+		$aligns = array(
+			'left'   => __( 'Left', 'coywolf-video-manager' ),
+			'center' => __( 'Center', 'coywolf-video-manager' ),
+			'right'  => __( 'Right', 'coywolf-video-manager' ),
+		);
+		echo '<p><label>' . esc_html__( 'Alignment', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_align]">';
+		foreach ( $aligns as $key => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $align, $key, false ), esc_html( $label ) );
+		}
+		echo '</select></label></p>';
+	}
+
+	/**
+	 * Like-button color fields.
+	 */
+	public function render_appearance_like_field() {
+		$this->color_input( 'like_color', __( 'Icon & text color', 'coywolf-video-manager' ) );
+		$this->color_input( 'like_bg', __( 'Background color', 'coywolf-video-manager' ) );
+	}
+
+	/**
+	 * Views / upload-date text fields.
+	 */
+	public function render_appearance_meta_field() {
+		$this->color_input( 'meta_color', __( 'Text color', 'coywolf-video-manager' ) );
+		$this->size_input( 'meta_size', __( 'Font size', 'coywolf-video-manager' ), __( 'theme default', 'coywolf-video-manager' ) );
+	}
+
+	/**
+	 * Render a wp-color-picker text input bound to a setting.
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $label Label.
+	 */
+	private function color_input( $key, $label ) {
+		$value = (string) $this->get( $key );
+		printf(
+			'<p><label>%1$s<br /><input type="text" class="coywolf-cvm-color" name="%2$s[%3$s]" value="%4$s" data-default-color="%4$s" /></label></p>',
+			esc_html( $label ),
+			esc_attr( self::OPTION ),
+			esc_attr( $key ),
+			esc_attr( $value )
+		);
+	}
+
+	/**
+	 * Render a px font-size number input (0 = inherit the theme).
+	 *
+	 * @param string $key       Setting key.
+	 * @param string $label     Label.
+	 * @param string $zero_hint What 0 means.
+	 */
+	private function size_input( $key, $label, $zero_hint ) {
+		printf(
+			'<p><label>%1$s <input type="number" min="0" max="96" name="%2$s[%3$s]" value="%4$s" class="small-text" /> px</label> <span class="description">%5$s</span></p>',
+			esc_html( $label ),
+			esc_attr( self::OPTION ),
+			esc_attr( $key ),
+			esc_attr( (int) $this->get( $key ) ),
+			esc_html( sprintf( /* translators: %s: e.g. "theme default". */ __( '(0 = %s)', 'coywolf-video-manager' ), $zero_hint ) )
+		);
 	}
 
 	/**
