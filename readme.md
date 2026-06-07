@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.4
+- **Version:** 1.0.5
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -111,6 +111,9 @@ Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name), `.coywolf-cvm-li
 4. Settings.
 
 ## Changelog
+
+### 1.0.5
+- All Videos + Edit Video overhaul, remove signed-URL/analytics, heart icon, rename block (#6).
 
 ### 1.0.4
 - jscolorpicker, live appearance preview, theme-overridable CSS, rem/numeric title, optional light/dark (#5).
