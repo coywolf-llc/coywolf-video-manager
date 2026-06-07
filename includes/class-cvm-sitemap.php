@@ -196,8 +196,8 @@ class Coywolf_CVM_Sitemap {
 				// Element order follows the sitemap-video 1.1 schema sequence.
 				$xml .= "\t\t<video:video>\n";
 				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
-				$xml .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
-				$xml .= "\t\t\t<video:description>" . esc_xml( wp_strip_all_tags( $desc ) ) . "</video:description>\n";
+				$xml .= "\t\t\t<video:title>" . $this->xml_text( $title ) . "</video:title>\n";
+				$xml .= "\t\t\t<video:description>" . $this->xml_text( wp_strip_all_tags( $desc ) ) . "</video:description>\n";
 				$xml .= "\t\t\t<video:content_loc>" . esc_url( $this->cloudflare->watch_url( $uid ) ) . "</video:content_loc>\n";
 				$xml .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
 				if ( $duration > 0 && $duration <= 28800 ) {
@@ -238,6 +238,23 @@ class Coywolf_CVM_Sitemap {
 			}
 		}
 		return $map;
+	}
+
+	/**
+	 * Escape text for an XML element: the five XML specials via esc_xml (quotes
+	 * included), then every remaining non-ASCII character (smart quotes, dashes,
+	 * accents, emoji…) as a numeric character reference, so the sitemap is pure
+	 * ASCII + entities and validates everywhere.
+	 *
+	 * @param string $text Raw text.
+	 * @return string
+	 */
+	private function xml_text( $text ) {
+		$text = esc_xml( (string) $text );
+		if ( function_exists( 'mb_encode_numericentity' ) ) {
+			$text = mb_encode_numericentity( $text, array( 0x80, 0x10ffff, 0, 0x1fffff ), 'UTF-8' );
+		}
+		return $text;
 	}
 
 	/**

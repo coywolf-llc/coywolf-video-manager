@@ -292,7 +292,14 @@ class Coywolf_CVM_REST {
 			$fields['meta'] = array( 'name' => sanitize_text_field( $params['name'] ) );
 		}
 		if ( isset( $params['creator'] ) ) {
-			$fields['creator'] = sanitize_text_field( $params['creator'] );
+			$creator = sanitize_text_field( $params['creator'] );
+			// Only send a non-empty creator. A blank field leaves Cloudflare's
+			// creator untouched — sending an empty creator can trip Cloudflare's
+			// 64-character validation on videos whose stored creator is already
+			// over the limit (e.g. set by an import), blocking the whole save.
+			if ( '' !== $creator ) {
+				$fields['creator'] = $creator;
+			}
 		}
 		if ( isset( $params['allowedOrigins'] ) ) {
 			$origins = is_array( $params['allowedOrigins'] ) ? $params['allowedOrigins'] : preg_split( '/[\s,]+/', (string) $params['allowedOrigins'] );
