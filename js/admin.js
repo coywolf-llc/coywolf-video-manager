@@ -384,8 +384,11 @@
 			}
 			var origins = document.getElementById( 'cvm-up-origins' ).value
 				.split( /\n+/ ).map( function ( s ) { return s.trim(); } ).filter( Boolean );
+			// A chosen name; Cloudflare's basic upload overwrites the video name
+			// with the file name, so we re-apply this once processing finishes.
+			var chosenName = document.getElementById( 'cvm-up-name' ).value.trim();
 			var opts = {
-				name: document.getElementById( 'cvm-up-name' ).value || file.name,
+				name: chosenName || file.name,
 				creator: document.getElementById( 'cvm-up-creator' ).value,
 				allowedOrigins: origins,
 				maxDurationSeconds: 21600
@@ -435,18 +438,33 @@
 				var editUrl = listUrl + '&action=edit&uid=' + encodeURIComponent( uid );
 				if ( tries > 60 ) {
 					// Processing is taking a while; send them to the Edit page anyway.
-					window.location = editUrl;
+					finish( uid, editUrl );
 					return;
 				}
 				rest( '/videos/' + encodeURIComponent( uid ) ).then( function ( v ) {
 					if ( v && ( v.ready || 'error' === v.state ) ) {
 						bar.style.width = '100%';
-						window.location = editUrl;
+						finish( uid, editUrl );
 					} else {
 						window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
 					}
 				} ).catch( function () {
 					window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
+				} );
+			}
+
+			// Re-apply the chosen name (Cloudflare overwrote it with the file
+			// name during upload), then go to the Edit screen. If no name was
+			// given, the file name stays as the fallback.
+			function finish( uid, editUrl ) {
+				if ( ! chosenName ) {
+					window.location = editUrl;
+					return;
+				}
+				rest( '/videos/' + encodeURIComponent( uid ), 'POST', { name: chosenName } ).then( function () {
+					window.location = editUrl;
+				} ).catch( function () {
+					window.location = editUrl;
 				} );
 			}
 		} );
