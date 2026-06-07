@@ -35,9 +35,7 @@ Deleting a video removes its block from any post or page that used it.
 Settings are locked until you connect a Cloudflare account. You'll need two things:
 
 1. **Account ID** — find it on the right-hand sidebar of any page in the [Cloudflare dashboard](https://dash.cloudflare.com/), or in the Stream section's API panel.
-2. **API token** — create one at **My Profile → API Tokens → Create Token → Custom token** with these permissions:
-   - **Account › Stream › Edit** (read and manage videos, captions, and uploads)
-   - *(optional)* **Account › Account Analytics › Read** (enables the watch-time column)
+2. **API token** — create one at **My Profile → API Tokens → Create Token → Custom token** with the **Account › Stream › Edit** permission (read and manage videos, captions, and uploads).
 
 Paste both into **Videos → Settings** and use **Test connection** to verify. The token is stored server-side and never exposed to the browser. You can instead define `COYWOLF_CVM_API_TOKEN` and `COYWOLF_CVM_ACCOUNT_ID` in `wp-config.php`, in which case the fields are locked.
 
@@ -56,11 +54,7 @@ No. Videos live on Cloudflare Stream. WordPress stores only what Cloudflare does
 
 ### How are plays and likes counted?
 
-Cloudflare's API doesn't expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback (so muted autoplay previews don't inflate the number). Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics — for delivery data, enable the watch-time column.
-
-### Can I play private videos?
-
-Yes. If a video requires signed URLs, enable signed-URL support and the plugin mints a short-lived token server-side so the video still plays in the block.
+Cloudflare's API doesn't expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback (so muted autoplay previews don't inflate the number). Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics.
 
 ### Will my embeds break if I deactivate the plugin?
 
