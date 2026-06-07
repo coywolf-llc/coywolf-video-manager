@@ -81,7 +81,7 @@ class Coywolf_CVM_Settings {
 			'plays_in_schema'     => true,
 			'likes_enabled'       => true,
 			'likes_show_count'    => true,
-			'sitemap_enabled'     => false,
+			'sitemap_enabled'     => true,
 			// Appearance.
 			'color_scheme'        => 'off',
 			'align'               => 'left',
@@ -365,7 +365,7 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_credentials_intro() {
 		echo '<p>' . esc_html__( 'Connect your Cloudflare account to manage and embed Stream videos. Nothing else unlocks until the connection succeeds.', 'coywolf-video-manager' ) . '</p>';
-		echo '<ol style="margin:0;">';
+		echo '<ol style="margin:0;padding-left:1.5em;">';
 		echo '<li>' . wp_kses_post( __( '<strong>Account ID</strong> — find it in the right sidebar of the <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a>, or in the Stream section.', 'coywolf-video-manager' ) ) . '</li>';
 		echo '<li>' . wp_kses_post( __( '<strong>API token</strong> — at <em>My Profile → API Tokens → Create Token → Custom token</em>, grant <code>Account · Stream · Edit</code> (and optionally <code>Account · Account Analytics · Read</code> for watch-time).', 'coywolf-video-manager' ) ) . '</li>';
 		echo '</ol>';
@@ -640,6 +640,27 @@ class Coywolf_CVM_Settings {
 			/* translators: %s: sitemap URL. */
 			esc_html__( 'Served at %s', 'coywolf-video-manager' ),
 			'<a href="' . esc_url( $sitemap_url ) . '" target="_blank" rel="noopener">' . esc_html( $sitemap_url ) . '</a>'
+		) . '</p>';
+
+		// Link the Robots.txt Manager to the matching distribution of this plugin
+		// (GitHub build = self-updater present; WordPress.org build = stripped).
+		$robots_url = class_exists( 'Coywolf_CVM_GitHub_Updater' )
+			? 'https://github.com/coywolf-llc/coywolf-robots-txt-manager'
+			: 'https://wordpress.org/plugins/coywolf-robots-txt-manager/';
+		echo '<p class="description">' . wp_kses(
+			sprintf(
+				/* translators: 1: Google Search Console link, 2: Coywolf Robots.txt Manager link. */
+				__( 'Submit this URL to %1$s, and list it in your robots.txt with the %2$s.', 'coywolf-video-manager' ),
+				'<a href="https://search.google.com/search-console" target="_blank" rel="noopener">' . esc_html__( 'Google Search Console', 'coywolf-video-manager' ) . '</a>',
+				'<a href="' . esc_url( $robots_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Coywolf Robots.txt Manager', 'coywolf-video-manager' ) . '</a>'
+			),
+			array(
+				'a' => array(
+					'href'   => array(),
+					'target' => array(),
+					'rel'    => array(),
+				),
+			)
 		) . '</p>';
 	}
 
