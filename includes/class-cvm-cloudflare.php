@@ -502,16 +502,6 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/**
-	 * HLS manifest URL.
-	 *
-	 * @param string $playback_id UID or signed token.
-	 * @return string
-	 */
-	public function hls_url( $playback_id ) {
-		return $this->playback_base( $playback_id ) . '/manifest/video.m3u8';
-	}
-
-	/**
 	 * Thumbnail (poster) URL.
 	 *
 	 * @param string $playback_id UID or signed token.
