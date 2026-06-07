@@ -451,12 +451,25 @@ class Coywolf_CVM_Admin {
 		$poster_img_url = ( $poster && isset( $poster['image_url'] ) ) ? (string) $poster['image_url'] : '';
 		$preview_src    = ( 'image' === $poster_mode && '' !== $poster_img_url ) ? $poster_img_url : $thumb;
 		$back_url       = admin_url( 'admin.php?page=' . self::PAGE );
+		$video_desc     = Coywolf_CVM_Block::video_description( $uid );
+
+		// Recommended custom-poster size: 1200px wide, height matching the video.
+		$vid_w = isset( $video['input']['width'] ) ? (int) $video['input']['width'] : 0;
+		$vid_h = isset( $video['input']['height'] ) ? (int) $video['input']['height'] : 0;
+		$rec_h = ( $vid_w > 0 && $vid_h > 0 ) ? (int) round( 1200 * $vid_h / $vid_w ) : 675;
 		?>
 		<div class="coywolf-cvm-edit" data-uid="<?php echo esc_attr( $uid ); ?>" data-duration="<?php echo esc_attr( $duration ); ?>" data-list-url="<?php echo esc_url( $back_url ); ?>">
 			<table class="form-table" role="presentation"><tbody>
 				<tr>
 					<th scope="row"><label for="cvm-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label></th>
 					<td><input type="text" id="cvm-name" class="regular-text" value="<?php echo esc_attr( $name ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cvm-description"><?php esc_html_e( 'Description', 'coywolf-video-manager' ); ?></label></th>
+					<td>
+						<textarea id="cvm-description" class="large-text" rows="4"><?php echo esc_textarea( $video_desc ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'Used in the video schema markup and the XML sitemap.', 'coywolf-video-manager' ); ?></p>
+					</td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="cvm-creator"><?php esc_html_e( 'Creator', 'coywolf-video-manager' ); ?></label></th>
@@ -484,6 +497,16 @@ class Coywolf_CVM_Admin {
 							<button type="button" class="button" id="cvm-poster-pick"><?php esc_html_e( 'Select / upload image', 'coywolf-video-manager' ); ?></button>
 							<input type="hidden" id="cvm-poster-image-id" value="<?php echo esc_attr( $poster_img_id ); ?>" />
 							<input type="hidden" id="cvm-poster-image-url" value="<?php echo esc_attr( $poster_img_url ); ?>" />
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %1$d: recommended width in px, %2$d: recommended height in px. */
+									esc_html__( 'Recommended size: %1$d × %2$dpx (matches this video’s dimensions).', 'coywolf-video-manager' ),
+									1200,
+									(int) $rec_h
+								);
+								?>
+							</p>
 						</div>
 						<div class="coywolf-cvm-poster-preview"><img id="cvm-poster-img" src="<?php echo esc_url( $preview_src ); ?>" alt="" /></div>
 					</td>

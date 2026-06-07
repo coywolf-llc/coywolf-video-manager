@@ -17,12 +17,12 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 
 - **Video block** — search your entire Stream library and embed a responsive video in a `<figure>` with the name in a `<figcaption>`. Per-block control over size (responsive or max-width), poster image (by timestamp or from the Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
 - **Three players** — the Cloudflare Stream player by default, plus bundled open-source [Plyr](https://plyr.io/) and [Video.js](https://videojs.com/) options, all playing Cloudflare's adaptive HLS.
-- **Likes, views & upload date** — a YouTube-style row under each video: a like button, the local view count, and when the video was uploaded to Cloudflare. Cloudflare's API doesn't expose likes or views, so the plugin records them locally in WordPress.
-- **Video schema** — automatic `VideoObject` JSON-LD with a large (1200px) thumbnail, duration, upload date, and optional view/like interaction counts.
+- **Likes, views & upload date** — a YouTube-style row under each video: a like button, the local view count, and when the video was uploaded to Cloudflare. Cloudflare's API doesn't expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
+- **Video schema** — automatic `VideoObject` JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts.
 - **All Videos screen** — a sortable table of every video with views, likes, and how many posts and pages embed each one, linking through to filtered views.
-- **Edit Video screen** — rename, set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image), copy the video ID, and add or AI-generate captions.
+- **Edit Video screen** — rename, add a description (used in schema + the sitemap), set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image at the recommended size), copy the video ID, and add or AI-generate captions.
 - **Upload to Cloudflare** — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.
-- **Video XML sitemap** — optionally serve `/video-sitemap.xml` listing every page and post that embeds a video.
+- **Video XML sitemap** — optionally serve `/coywolf-video-sitemap.xml` listing every page and post that embeds a video (named to avoid clashing with Yoast SEO).
 
 Deleting a video removes its block from any post or page that used it.
 
@@ -54,7 +54,7 @@ No. Videos live on Cloudflare Stream. WordPress stores only what Cloudflare does
 
 ### How are plays and likes counted?
 
-Cloudflare's API doesn't expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback (so muted autoplay previews don't inflate the number). Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics.
+Cloudflare's API doesn't expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback (so muted autoplay previews don't inflate the number). Likes are deduplicated per visitor, and the displayed like count is capped at the view count (so likes can never outnumber plays). These are engagement signals, not billing-grade analytics.
 
 ### Will my embeds break if I deactivate the plugin?
 
