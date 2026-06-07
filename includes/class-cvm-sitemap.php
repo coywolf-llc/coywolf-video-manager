@@ -153,8 +153,9 @@ class Coywolf_CVM_Sitemap {
 	 * @return string
 	 */
 	public function render_xml() {
-		$entries = $this->index->sitemap_entries();
-		$stats   = Coywolf_Video_Manager::instance()->stats();
+		$entries   = $this->index->sitemap_entries();
+		$stats     = Coywolf_Video_Manager::instance()->stats();
+		$durations = $this->duration_map();
 
 		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">' . "\n";
@@ -166,6 +167,8 @@ class Coywolf_CVM_Sitemap {
 			}
 			$title       = get_the_title( $post_id );
 			$description = $this->post_description( $post_id, $title );
+			// Same timestamp the block schema uses for uploadDate.
+			$published = get_the_date( 'c', $post_id );
 
 			$xml .= "\t<url>\n";
 			$xml .= "\t\t<loc>" . esc_url( $permalink ) . "</loc>\n";
@@ -174,14 +177,26 @@ class Coywolf_CVM_Sitemap {
 				$counts   = $stats->get_counts( $uid );
 				$vid_desc = Coywolf_CVM_Block::video_description( $uid );
 				$desc     = '' !== $vid_desc ? $vid_desc : $description;
-				$xml     .= "\t\t<video:video>\n";
-				$xml     .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
-				$xml     .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
-				$xml     .= "\t\t\t<video:description>" . esc_xml( $desc ) . "</video:description>\n";
-				$xml   .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
+				$duration = isset( $durations[ $uid ] ) ? (int) $durations[ $uid ] : 0;
+
+				// Element order follows the sitemap-video 1.1 schema sequence.
+				$xml .= "\t\t<video:video>\n";
+				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
+				$xml .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
+				$xml .= "\t\t\t<video:description>" . esc_xml( $desc ) . "</video:description>\n";
+				$xml .= "\t\t\t<video:content_loc>" . esc_url( $this->cloudflare->watch_url( $uid ) ) . "</video:content_loc>\n";
+				$xml .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
+				if ( $duration > 0 && $duration <= 28800 ) {
+					$xml .= "\t\t\t<video:duration>" . $duration . "</video:duration>\n";
+				}
 				if ( $counts['plays'] > 0 ) {
 					$xml .= "\t\t\t<video:view_count>" . (int) $counts['plays'] . "</video:view_count>\n";
 				}
+				if ( $published ) {
+					$xml .= "\t\t\t<video:publication_date>" . esc_xml( $published ) . "</video:publication_date>\n";
+				}
+				$xml .= "\t\t\t<video:requires_subscription>no</video:requires_subscription>\n";
+				$xml .= "\t\t\t<video:live>no</video:live>\n";
 				$xml .= "\t\t</video:video>\n";
 			}
 
@@ -190,6 +205,25 @@ class Coywolf_CVM_Sitemap {
 
 		$xml .= '</urlset>' . "\n";
 		return $xml;
+	}
+
+	/**
+	 * Map of video UID => duration in whole seconds, from the cached library.
+	 *
+	 * @return array
+	 */
+	private function duration_map() {
+		$map    = array();
+		$videos = $this->cloudflare->list_videos();
+		if ( is_wp_error( $videos ) || ! is_array( $videos ) ) {
+			return $map;
+		}
+		foreach ( $videos as $video ) {
+			if ( ! empty( $video['uid'] ) && isset( $video['duration'] ) ) {
+				$map[ (string) $video['uid'] ] = (int) round( (float) $video['duration'] );
+			}
+		}
+		return $map;
 	}
 
 	/**
