@@ -189,6 +189,7 @@ class Coywolf_CVM_Admin {
 							'title_color'  => $d['title_color'],
 							'title_size'   => $d['title_size'],
 							'title_weight' => $d['title_weight'],
+							'desc_weight'  => $d['desc_weight'],
 							'align'        => $d['align'],
 							'like_icon'    => $d['like_icon'],
 							'like_color'        => $d['like_color'],

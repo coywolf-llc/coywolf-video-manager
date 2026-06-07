@@ -86,8 +86,11 @@ class Coywolf_CVM_Settings {
 			'color_scheme'        => 'off',
 			'align'               => 'left',
 			'title_color'         => '',
-			'title_size'          => 1.15,
+			'show_title'          => true,
+			'show_desc'           => true,
+			'title_size'          => 1.0,
 			'title_weight'        => '700',
+			'desc_weight'         => '400',
 			'like_icon'           => 'heart',
 			'like_color'          => '#0f0f0f',
 			'like_active_color'   => '',
@@ -104,7 +107,7 @@ class Coywolf_CVM_Settings {
 	 */
 	public static function size_defaults() {
 		return array(
-			'title_size' => 1.15,
+			'title_size' => 1.0,
 			'meta_size'  => 0.9,
 		);
 	}
@@ -238,7 +241,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_align', __( 'Alignment', 'coywolf-video-manager' ), array( $this, 'render_appearance_align_field' ), self::PAGE, 'coywolf_cvm_appearance' );
-		add_settings_field( 'appearance_title', __( 'Video name', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_title', __( 'Name & description', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 
@@ -292,7 +295,7 @@ class Coywolf_CVM_Settings {
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
 
-		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled' ) as $flag ) {
+		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled', 'show_title', 'show_desc' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
@@ -311,6 +314,7 @@ class Coywolf_CVM_Settings {
 
 		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
+		$clean['desc_weight']  = ( isset( $input['desc_weight'] ) && in_array( (string) $input['desc_weight'], $weights, true ) ) ? (string) $input['desc_weight'] : '400';
 		$aligns                = array( 'left', 'center', 'right' );
 		$clean['align']        = ( isset( $input['align'] ) && in_array( $input['align'], $aligns, true ) ) ? $input['align'] : 'left';
 		$icons                 = array( 'heart', 'thumbs', 'star' );
@@ -509,7 +513,7 @@ class Coywolf_CVM_Settings {
 
 		$preview  = '<div class="coywolf-cvm-preview-stage" id="coywolf-cvm-preview-stage">';
 		$preview .= '<figure class="coywolf-cvm coywolf-cvm-preview' . $scheme_class . '" id="coywolf-cvm-preview">';
-		$preview .= '<figcaption class="coywolf-cvm-title">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</figcaption>';
+		$preview .= '<figcaption class="coywolf-cvm-title"><strong class="coywolf-cvm-name">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</strong><span class="coywolf-cvm-sep"> — </span><span class="coywolf-cvm-desc">' . esc_html__( 'A short video description.', 'coywolf-video-manager' ) . '</span></figcaption>';
 		$preview .= '<div class="coywolf-cvm-meta">';
 		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg( $this->get( 'like_icon' ) ) . '<span class="coywolf-cvm-like-count">175</span></button>';
 		$preview .= '<span class="coywolf-cvm-views">' . esc_html__( '23 views', 'coywolf-video-manager' ) . '</span>';
@@ -557,14 +561,46 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Video-name (figcaption) style fields.
+	 * Name & description (figcaption) style fields.
 	 */
 	public function render_appearance_title_field() {
 		$this->color_input( 'title_color', __( 'Text color', 'coywolf-video-manager' ) );
-		$this->size_input( 'title_size', __( 'Font size', 'coywolf-video-manager' ) );
 
-		$weight = (string) $this->get( 'title_weight' );
-		echo '<p><label>' . esc_html__( 'Font weight', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_weight]" class="coywolf-cvm-field" data-key="title_weight">';
+		$this->toggle_input( 'show_title', __( 'Show video name', 'coywolf-video-manager' ) );
+		$this->weight_select( 'title_weight', __( 'Name font weight', 'coywolf-video-manager' ) );
+
+		$this->toggle_input( 'show_desc', __( 'Show video description', 'coywolf-video-manager' ) );
+		$this->weight_select( 'desc_weight', __( 'Description font weight', 'coywolf-video-manager' ) );
+
+		$this->size_input( 'title_size', __( 'Font size', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'Font size and text color apply to both the name and the description. The description text comes from the Edit Video page.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
+	 * Render a checkbox bound to the OPTION array, wired for the live preview.
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $label Label.
+	 */
+	private function toggle_input( $key, $label ) {
+		printf(
+			'<p><label><input type="checkbox" class="coywolf-cvm-toggle" data-key="%2$s" name="%1$s[%2$s]" value="1"%3$s /> %4$s</label></p>',
+			esc_attr( self::OPTION ),
+			esc_attr( $key ),
+			checked( (bool) $this->get( $key ), true, false ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Render a 100–900 font-weight select bound to the OPTION array.
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $label Label.
+	 */
+	private function weight_select( $key, $label ) {
+		$weight = (string) $this->get( $key );
+		echo '<p><label>' . esc_html( $label ) . ' <select name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" class="coywolf-cvm-field" data-key="' . esc_attr( $key ) . '">';
 		foreach ( array( '100', '200', '300', '400', '500', '600', '700', '800', '900' ) as $w ) {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $w ), selected( $weight, $w, false ), esc_html( $w ) );
 		}

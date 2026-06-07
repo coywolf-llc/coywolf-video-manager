@@ -76,9 +76,10 @@ Style the on-post UI from **Videos → Settings → Appearance** (with a live pr
 
 | Property | Controls | Default |
 | --- | --- | --- |
-| `--cvm-title-color` | Video name color | `inherit` |
-| `--cvm-title-size` | Video name size | `1.15rem` |
-| `--cvm-title-weight` | Video name weight | `700` |
+| `--cvm-title-color` | Name & description color | `inherit` |
+| `--cvm-title-size` | Name & description size | `1rem` |
+| `--cvm-title-weight` | Video name font weight | `700` |
+| `--cvm-desc-weight` | Description font weight | `400` |
 | `--cvm-align` | Alignment of the name and the like/views/date row | `left` |
 | `--cvm-like-color` | Like icon & text color (unclicked) | `#0f0f0f` |
 | `--cvm-like-active` | Like icon/text on hover & the fill when liked | unclicked color |
@@ -96,7 +97,7 @@ Override them (or target the classes directly) from your theme:
 }
 ```
 
-Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name), `.coywolf-cvm-like` (button), `.coywolf-cvm-thumb` (icon), `.coywolf-cvm-views`, `.coywolf-cvm-date`. An optional **light/dark scheme** adds `.coywolf-cvm-scheme-dark` or `.coywolf-cvm-scheme-auto` (which follows the visitor's `prefers-color-scheme`). The plugin's CSS avoids `!important`, so your theme can override it.
+Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name/description figcaption), `.coywolf-cvm-name` (name), `.coywolf-cvm-desc` (description), `.coywolf-cvm-like` (button), `.coywolf-cvm-thumb` (icon), `.coywolf-cvm-views`, `.coywolf-cvm-date`. An optional **light/dark scheme** adds `.coywolf-cvm-scheme-dark` or `.coywolf-cvm-scheme-auto` (which follows the visitor's `prefers-color-scheme`). The plugin's CSS avoids `!important`, so your theme can override it.
 
 ## Screenshots
 

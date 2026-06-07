@@ -29,6 +29,11 @@
 		return input ? input.value : '';
 	}
 
+	function fieldChecked( key ) {
+		var box = document.querySelector( '.coywolf-cvm-toggle[data-key="' + key + '"]' );
+		return box ? box.checked : true;
+	}
+
 	function currentScheme() {
 		var s = document.querySelector( '.coywolf-cvm-scheme' );
 		return s ? s.value : 'off';
@@ -113,8 +118,25 @@
 		applySize( preview, 'title_size', '--cvm-title-size' );
 		applySize( preview, 'meta_size', '--cvm-meta-size' );
 		applyChoice( preview, 'title_weight', '--cvm-title-weight' );
+		applyChoice( preview, 'desc_weight', '--cvm-desc-weight' );
 		applyChoice( preview, 'align', '--cvm-align' );
 		applyIcon( preview );
+
+		// Show/hide the name, description, and their separator.
+		var showName = fieldChecked( 'show_title' );
+		var showDesc = fieldChecked( 'show_desc' );
+		var nameEl = preview.querySelector( '.coywolf-cvm-name' );
+		var descEl = preview.querySelector( '.coywolf-cvm-desc' );
+		var sepEl = preview.querySelector( '.coywolf-cvm-sep' );
+		if ( nameEl ) {
+			nameEl.style.display = showName ? '' : 'none';
+		}
+		if ( descEl ) {
+			descEl.style.display = showDesc ? '' : 'none';
+		}
+		if ( sepEl ) {
+			sepEl.style.display = ( showName && showDesc ) ? '' : 'none';
+		}
 
 		// A configured clicked color enables the hover + filled-when-liked styling.
 		preview.classList.toggle( 'coywolf-cvm-active-like', '' !== ( fieldValue( 'like_active_color' ) || '' ).trim() );
@@ -170,7 +192,7 @@
 	}
 
 	function wireInputs() {
-		var inputs = document.querySelectorAll( '.coywolf-cvm-field, .coywolf-cvm-scheme' );
+		var inputs = document.querySelectorAll( '.coywolf-cvm-field, .coywolf-cvm-scheme, .coywolf-cvm-toggle' );
 		Array.prototype.forEach.call( inputs, function ( input ) {
 			input.addEventListener( 'change', updatePreview );
 			input.addEventListener( 'input', updatePreview );
