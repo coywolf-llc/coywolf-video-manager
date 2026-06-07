@@ -1,0 +1,78 @@
+=== Coywolf Video Manager ===
+Contributors: jonhenshaw
+Tags: cloudflare stream, video, video block, video sitemap, video schema
+Requires at least: 6.3
+Tested up to: 7.0
+Requires PHP: 7.4
+Stable tag: 1.0.0
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Manage, embed, and upload Cloudflare Stream videos from WordPress — video block, play/like tracking, schema, captions, and a video sitemap.
+
+== Description ==
+
+Coywolf Video Manager turns the WordPress admin into a control panel for your Cloudflare Stream account. Connect it with a Cloudflare API token and you can browse, search, edit, and upload videos, then embed them anywhere with a block — no trips to the Cloudflare dashboard.
+
+Features:
+
+* Video block — search your entire Stream library and embed a video, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
+* Three players — the Cloudflare Stream player by default, plus bundled open-source Plyr and Video.js options, all playing Cloudflare's adaptive HLS.
+* Plays & likes — recorded locally in WordPress (Cloudflare's API does not expose them), optionally shown on the post and included in the video schema.
+* Video schema — automatic VideoObject JSON-LD with thumbnail, duration, upload date, and optional play/like interaction counts.
+* Lightbox — open and play a video in a lightbox on click.
+* All Videos screen — a table of every video with plays, likes, and how many posts and pages embed each one.
+* Edit Video screen — rename, set the creator, manage allowed origins, control signed-URL protection, pick the poster timestamp with a live preview, and add or AI-generate captions.
+* Upload to Cloudflare — upload videos straight from WordPress (resumable for large files), with the same options as the Edit screen.
+* Signed URLs — play private (signed-URL) videos by minting short-lived tokens server-side.
+* Watch-time analytics — an optional column of real minutes-viewed pulled from Cloudflare's analytics.
+* Video XML sitemap — optionally serve /video-sitemap.xml listing every page and post that embeds a video.
+
+<!-- wporg-strip:start -->
+* GitHub self-updater — updates delivered straight from the project's GitHub releases.
+<!-- wporg-strip:end -->
+
+== Cloudflare API access ==
+
+Settings are locked until you connect a Cloudflare account. You need your Account ID (in the Cloudflare dashboard sidebar) and an API token created at My Profile > API Tokens with the "Account > Stream > Edit" permission (and optionally "Account > Account Analytics > Read" for the watch-time column). Paste both into Videos > Settings and click Test connection. The token is stored server-side and never exposed to the browser. You can instead define COYWOLF_CVM_API_TOKEN and COYWOLF_CVM_ACCOUNT_ID in wp-config.php.
+
+== Installation ==
+
+1. Upload the plugin to wp-content/plugins/coywolf-video-manager or install the zip from Plugins > Add New > Upload Plugin.
+2. Activate it.
+3. Go to Videos > Settings, enter your Cloudflare Account ID and API token, and click Test connection.
+4. Configure your defaults, then add the Video block to a post.
+
+== Frequently Asked Questions ==
+
+= Does this store my videos in WordPress? =
+
+No. Videos live on Cloudflare Stream. WordPress stores only what Cloudflare does not: local play/like counts, which posts embed which videos, and your settings.
+
+= How are plays and likes counted? =
+
+Cloudflare's API does not expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback so muted autoplay previews do not inflate the number. Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics; for delivery data, enable the watch-time column.
+
+= Can I play private videos? =
+
+Yes. If a video requires signed URLs, enable signed-URL support and the plugin mints a short-lived token server-side so the video still plays in the block.
+
+= Will my embeds break if I deactivate the plugin? =
+
+The live player, counts, and schema are rendered by the plugin, but each block also saves a plain link to the video as a fallback, so content degrades gracefully.
+
+== Privacy & third-party services ==
+
+This plugin connects WordPress to Cloudflare Stream, a third-party service, on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. When the Cloudflare player is used, the front end loads the Stream player SDK from embed.cloudflarestream.com and streams video from cloudflarestream.com / videodelivery.net. The bundled Plyr (MIT), Video.js (Apache-2.0), and hls.js (Apache-2.0) players are served locally and make no third-party calls themselves. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
+
+== Screenshots ==
+
+1. The All Videos screen.
+2. Editing a video.
+3. The video block and its options in the editor.
+4. Settings.
+
+== Changelog ==
+
+= 1.0.0 =
+* Initial release.

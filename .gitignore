@@ -1,0 +1,8 @@
+# Coywolf Video Manager (WordPress plugin)
+
+# Build artefacts
+*.zip
+build/
+*.log
+.DS_Store
+node_modules/
