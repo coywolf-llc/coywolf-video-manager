@@ -23,7 +23,7 @@ Features:
 * All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
 * Edit Video screen — rename, add a description (used in schema + the sitemap), set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image at the recommended size), copy the video ID, and add or AI-generate captions.
 * Upload to Cloudflare — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.
-* Video XML sitemap — optionally serve /coywolf-video-sitemap.xml (named to avoid clashing with Yoast SEO) listing every page and post that embeds a video. Deleting a video also removes its block from any post or page that used it.
+* Video XML sitemap — optionally serve /coywolf-video-sitemap.xml (named to avoid clashing with Yoast SEO) listing every page and post that embeds a video, with full Google video tags (thumbnail, title, description, content and player URLs, duration, publication date, view count). Deleting a video also removes its block from any post or page that used it.
 
 <!-- wporg-strip:start -->
 * GitHub self-updater — updates delivered straight from the project's GitHub releases.
