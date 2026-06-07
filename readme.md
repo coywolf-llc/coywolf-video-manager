@@ -79,9 +79,9 @@ Style the on-post UI from **Videos → Settings → Appearance** (with a live pr
 | `--cvm-title-color` | Video name color | `inherit` |
 | `--cvm-title-size` | Video name size | `1.15rem` |
 | `--cvm-title-weight` | Video name weight | `700` |
-| `--cvm-title-align` | Video name alignment | `left` |
+| `--cvm-align` | Alignment of the name and the like/views/date row | `left` |
 | `--cvm-like-color` | Like icon & text color | `#0f0f0f` |
-| `--cvm-like-bg` | Like button background | `#f2f2f2` |
+| `--cvm-like-bg` | Like button background (empty in Settings = none) | `#f2f2f2` |
 | `--cvm-meta-color` | Views & date color | `#606060` |
 | `--cvm-meta-size` | Views & date size | `0.9rem` |
 

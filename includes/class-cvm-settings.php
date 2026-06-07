@@ -70,6 +70,7 @@ class Coywolf_CVM_Settings {
 	public static function defaults() {
 		return array(
 			'player'              => 'cloudflare',
+			'player_color'        => '',
 			'controls'            => true,
 			'autoplay'            => false,
 			'loop'                => false,
@@ -83,10 +84,11 @@ class Coywolf_CVM_Settings {
 			'sitemap_enabled'     => false,
 			// Appearance.
 			'color_scheme'        => 'off',
+			'align'               => 'left',
 			'title_color'         => '',
 			'title_size'          => 1.15,
 			'title_weight'        => '700',
-			'title_align'         => 'left',
+			'like_icon'           => 'heart',
 			'like_color'          => '#0f0f0f',
 			'like_bg'             => '#f2f2f2',
 			'meta_color'          => '#606060',
@@ -221,6 +223,7 @@ class Coywolf_CVM_Settings {
 
 		add_settings_section( 'coywolf_cvm_player', __( 'Player', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'player', __( 'Video player', 'coywolf-video-manager' ), array( $this, 'render_player_field' ), self::PAGE, 'coywolf_cvm_player' );
+		add_settings_field( 'player_color', __( 'Play button', 'coywolf-video-manager' ), array( $this, 'render_player_color_field' ), self::PAGE, 'coywolf_cvm_player' );
 
 		add_settings_section( 'coywolf_cvm_embed', __( 'Embed defaults', 'coywolf-video-manager' ), array( $this, 'render_embed_intro' ), self::PAGE );
 		add_settings_field( 'embed', __( 'Default options', 'coywolf-video-manager' ), array( $this, 'render_embed_field' ), self::PAGE, 'coywolf_cvm_embed' );
@@ -231,6 +234,7 @@ class Coywolf_CVM_Settings {
 		add_settings_section( 'coywolf_cvm_appearance', __( 'Appearance', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_align', __( 'Alignment', 'coywolf-video-manager' ), array( $this, 'render_appearance_align_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Video name', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
@@ -280,7 +284,8 @@ class Coywolf_CVM_Settings {
 		$clean    = array();
 
 		$players          = array( 'cloudflare', 'plyr', 'videojs' );
-		$clean['player']  = ( isset( $input['player'] ) && in_array( $input['player'], $players, true ) ) ? $input['player'] : $defaults['player'];
+		$clean['player']       = ( isset( $input['player'] ) && in_array( $input['player'], $players, true ) ) ? $input['player'] : $defaults['player'];
+		$clean['player_color'] = $this->sanitize_hex( isset( $input['player_color'] ) ? $input['player_color'] : '' );
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
 
@@ -303,7 +308,9 @@ class Coywolf_CVM_Settings {
 		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
 		$aligns                = array( 'left', 'center', 'right' );
-		$clean['title_align']  = ( isset( $input['title_align'] ) && in_array( $input['title_align'], $aligns, true ) ) ? $input['title_align'] : 'left';
+		$clean['align']        = ( isset( $input['align'] ) && in_array( $input['align'], $aligns, true ) ) ? $input['align'] : 'left';
+		$icons                 = array( 'heart', 'thumbs', 'star' );
+		$clean['like_icon']    = ( isset( $input['like_icon'] ) && in_array( $input['like_icon'], $icons, true ) ) ? $input['like_icon'] : 'heart';
 
 		return $clean;
 	}
@@ -438,6 +445,14 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
+	 * Play-button (player accent) color field.
+	 */
+	public function render_player_color_field() {
+		$this->color_input( 'player_color', __( 'Accent color', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'Default color for the player’s play button and accents. Leave empty for Cloudflare’s default; can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
 	 * Embed defaults section intro.
 	 */
 	public function render_embed_intro() {
@@ -492,7 +507,7 @@ class Coywolf_CVM_Settings {
 		$preview .= '<figure class="coywolf-cvm coywolf-cvm-preview' . $scheme_class . '" id="coywolf-cvm-preview">';
 		$preview .= '<figcaption class="coywolf-cvm-title">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</figcaption>';
 		$preview .= '<div class="coywolf-cvm-meta">';
-		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg() . '<span class="coywolf-cvm-like-count">175</span></button>';
+		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg( $this->get( 'like_icon' ) ) . '<span class="coywolf-cvm-like-count">175</span></button>';
 		$preview .= '<span class="coywolf-cvm-views">' . esc_html__( '23 views', 'coywolf-video-manager' ) . '</span>';
 		$preview .= '<span class="coywolf-cvm-date">' . esc_html__( '7 months ago', 'coywolf-video-manager' ) . '</span>';
 		$preview .= '</div></figure></div>';
@@ -520,6 +535,24 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
+	 * Alignment (applies to the video name and the views/likes row).
+	 */
+	public function render_appearance_align_field() {
+		$align  = (string) $this->get( 'align' );
+		$aligns = array(
+			'left'   => __( 'Left', 'coywolf-video-manager' ),
+			'center' => __( 'Center', 'coywolf-video-manager' ),
+			'right'  => __( 'Right', 'coywolf-video-manager' ),
+		);
+		echo '<select name="' . esc_attr( self::OPTION ) . '[align]" class="coywolf-cvm-field" data-key="align">';
+		foreach ( $aligns as $key => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $align, $key, false ), esc_html( $label ) );
+		}
+		echo '</select>';
+		echo '<p class="description">' . esc_html__( 'Aligns the video name and the like / views / date row. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
 	 * Video-name (figcaption) style fields.
 	 */
 	public function render_appearance_title_field() {
@@ -532,26 +565,26 @@ class Coywolf_CVM_Settings {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $w ), selected( $weight, $w, false ), esc_html( $w ) );
 		}
 		echo '</select></label></p>';
-
-		$align  = (string) $this->get( 'title_align' );
-		$aligns = array(
-			'left'   => __( 'Left', 'coywolf-video-manager' ),
-			'center' => __( 'Center', 'coywolf-video-manager' ),
-			'right'  => __( 'Right', 'coywolf-video-manager' ),
-		);
-		echo '<p><label>' . esc_html__( 'Alignment', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_align]" class="coywolf-cvm-field" data-key="title_align">';
-		foreach ( $aligns as $key => $label ) {
-			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $align, $key, false ), esc_html( $label ) );
-		}
-		echo '</select></label></p>';
 	}
 
 	/**
-	 * Like-button color fields.
+	 * Like-button icon + color fields.
 	 */
 	public function render_appearance_like_field() {
+		$icon  = (string) $this->get( 'like_icon' );
+		$icons = array(
+			'heart'  => __( 'Heart', 'coywolf-video-manager' ),
+			'thumbs' => __( 'Thumbs up', 'coywolf-video-manager' ),
+			'star'   => __( 'Star', 'coywolf-video-manager' ),
+		);
+		echo '<p><label>' . esc_html__( 'Icon', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[like_icon]" class="coywolf-cvm-field" data-key="like_icon">';
+		foreach ( $icons as $key => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $icon, $key, false ), esc_html( $label ) );
+		}
+		echo '</select></label></p>';
+
 		$this->color_input( 'like_color', __( 'Icon & text color', 'coywolf-video-manager' ) );
-		$this->color_input( 'like_bg', __( 'Background color', 'coywolf-video-manager' ) );
+		$this->color_input( 'like_bg', __( 'Background color (empty = none)', 'coywolf-video-manager' ) );
 	}
 
 	/**

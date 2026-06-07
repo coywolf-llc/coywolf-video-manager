@@ -54,8 +54,24 @@ class Coywolf_CVM_Sitemap {
 
 		add_action( 'init', array( __CLASS__, 'register_rewrite' ) );
 		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
-		add_action( 'template_redirect', array( $this, 'serve' ) );
+		// Priority 0 so we serve before redirect_canonical (priority 10) can
+		// 301 the .xml URL away; the filter is a belt-and-suspenders backup.
+		add_action( 'template_redirect', array( $this, 'serve' ), 0 );
+		add_filter( 'redirect_canonical', array( $this, 'block_canonical' ) );
 		add_action( 'update_option_coywolf_cvm_settings', array( $this, 'on_settings_changed' ), 10, 2 );
+	}
+
+	/**
+	 * Don't let WordPress canonical-redirect the sitemap URL.
+	 *
+	 * @param string|false $redirect Proposed redirect URL.
+	 * @return string|false
+	 */
+	public function block_canonical( $redirect ) {
+		if ( get_query_var( 'coywolf_cvm_sitemap' ) ) {
+			return false;
+		}
+		return $redirect;
 	}
 
 	/**

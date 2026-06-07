@@ -7,17 +7,19 @@
  *
  *   .coywolf-cvm {
  *     --cvm-title-color: #111;     --cvm-title-size: 1.25rem;
- *     --cvm-title-weight: 600;     --cvm-title-align: left;
+ *     --cvm-title-weight: 600;     --cvm-align: left;
  *     --cvm-like-color: #0f0f0f;   --cvm-like-bg: #f2f2f2;
  *     --cvm-meta-color: #606060;   --cvm-meta-size: 0.9rem;
  *   }
+ *
+ * --cvm-align (left|center|right) aligns both the video name and the meta row.
  */
 
 .coywolf-cvm {
 	--cvm-title-color: inherit;
 	--cvm-title-size: 1.15rem;
 	--cvm-title-weight: 700;
-	--cvm-title-align: left;
+	--cvm-align: left;
 	--cvm-like-color: #0f0f0f;
 	--cvm-like-bg: #f2f2f2;
 	--cvm-meta-color: #606060;
@@ -68,7 +70,7 @@
 	max-width: none;
 	margin: 0.7em 0 0.4em;
 	padding: 0;
-	text-align: var( --cvm-title-align );
+	text-align: var( --cvm-align );
 	font-weight: var( --cvm-title-weight );
 	font-size: var( --cvm-title-size );
 	font-style: normal;
@@ -82,7 +84,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: flex-start;
+	justify-content: var( --cvm-align );
 	gap: 0.6em 1em;
 	margin: 0;
 	padding: 0;
@@ -90,6 +92,7 @@
 	font-size: var( --cvm-meta-size );
 	line-height: 1.4;
 	color: var( --cvm-meta-color );
+	text-align: var( --cvm-align );
 }
 
 /* Like button — reset theme <button> styling, then make it a YouTube pill. */

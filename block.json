@@ -36,7 +36,8 @@
 		"playsInSchema": { "type": "boolean" },
 		"enableLikes": { "type": "boolean" },
 		"showLikeCount": { "type": "boolean" },
-		"primaryColor": { "type": "string", "default": "" }
+		"primaryColor": { "type": "string", "default": "" },
+		"contentAlign": { "type": "string" }
 	},
 	"editorScript": "coywolf-cvm-block",
 	"editorStyle": "coywolf-cvm-block-editor",

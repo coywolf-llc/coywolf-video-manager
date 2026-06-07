@@ -187,11 +187,17 @@ class Coywolf_CVM_Admin {
 							'title_color'  => $d['title_color'],
 							'title_size'   => $d['title_size'],
 							'title_weight' => $d['title_weight'],
-							'title_align'  => $d['title_align'],
+							'align'        => $d['align'],
+							'like_icon'    => $d['like_icon'],
 							'like_color'   => $d['like_color'],
 							'like_bg'      => $d['like_bg'],
 							'meta_color'   => $d['meta_color'],
 							'meta_size'    => $d['meta_size'],
+						),
+						'icons'    => array(
+							'heart'  => Coywolf_CVM_Block::thumb_svg( 'heart' ),
+							'thumbs' => Coywolf_CVM_Block::thumb_svg( 'thumbs' ),
+							'star'   => Coywolf_CVM_Block::thumb_svg( 'star' ),
 						),
 					)
 				) . ';',
@@ -415,7 +421,6 @@ class Coywolf_CVM_Admin {
 
 		echo '<div class="wrap">';
 		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Edit Video', 'coywolf-video-manager' ) . '</h1>';
-		echo ' <a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ) . '" class="page-title-action">' . esc_html__( 'Back to All Videos', 'coywolf-video-manager' ) . '</a>';
 		echo '<hr class="wp-header-end" />';
 
 		if ( '' === $uid ) {

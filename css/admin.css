@@ -33,18 +33,11 @@
 	display: inline-block;
 }
 
-.column-uid code {
-	font-size: 11px;
-	word-break: break-all;
-}
-
-.column-uid,
 .column-status,
 .column-plays,
 .column-likes,
 .column-posts,
-.column-pages,
-.column-minutes {
+.column-pages {
 	width: 9%;
 }
 

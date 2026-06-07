@@ -71,6 +71,34 @@
 		}
 	}
 
+	// Like background: an explicitly empty value means "no background".
+	function applyLikeBg( preview ) {
+		var value = ( fieldValue( 'like_bg' ) || '' ).trim();
+		if ( '' === value ) {
+			setVar( preview, '--cvm-like-bg', 'transparent' );
+			return;
+		}
+		var def = ( '' + ( defaults.like_bg || '' ) ).toLowerCase();
+		setVar( preview, '--cvm-like-bg', value.toLowerCase() === def ? null : value );
+	}
+
+	// Swap the preview icon (heart / thumbs / star) from the localized SVGs.
+	function applyIcon( preview ) {
+		var icons = cfg.icons || {};
+		var sel = document.querySelector( '.coywolf-cvm-field[data-key="like_icon"]' );
+		var svg = icons[ sel ? sel.value : 'heart' ] || icons.heart;
+		var old = preview.querySelector( '.coywolf-cvm-thumb' );
+		if ( ! svg || ! old ) {
+			return;
+		}
+		var tmp = document.createElement( 'div' );
+		tmp.innerHTML = svg;
+		var node = tmp.firstChild;
+		if ( node ) {
+			old.parentNode.replaceChild( node, old );
+		}
+	}
+
 	function updatePreview() {
 		var preview = byId( 'coywolf-cvm-preview' );
 		if ( ! preview ) {
@@ -79,12 +107,13 @@
 
 		applyColor( preview, 'title_color', '--cvm-title-color' );
 		applyColor( preview, 'like_color', '--cvm-like-color' );
-		applyColor( preview, 'like_bg', '--cvm-like-bg' );
+		applyLikeBg( preview );
 		applyColor( preview, 'meta_color', '--cvm-meta-color' );
 		applySize( preview, 'title_size', '--cvm-title-size' );
 		applySize( preview, 'meta_size', '--cvm-meta-size' );
 		applyChoice( preview, 'title_weight', '--cvm-title-weight' );
-		applyChoice( preview, 'title_align', '--cvm-title-align' );
+		applyChoice( preview, 'align', '--cvm-align' );
+		applyIcon( preview );
 
 		var scheme = currentScheme();
 		preview.className = preview.className.replace( /\s*coywolf-cvm-scheme-(off|auto|light|dark)/g, '' );
