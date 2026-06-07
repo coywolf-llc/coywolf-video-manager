@@ -352,10 +352,11 @@ class Coywolf_CVM_REST {
 	 * Persist the per-video description from the Edit Video form.
 	 *
 	 * @param string $uid  Video UID.
-	 * @param string $text Description text.
+	 * @param string $text Description text (safe HTML is allowed; it renders in
+	 *                     the block and is stripped for schema + the sitemap).
 	 */
 	private function save_description( $uid, $text ) {
-		$text = sanitize_textarea_field( $text );
+		$text = trim( wp_kses_post( (string) $text ) );
 		$all  = get_option( 'coywolf_cvm_descriptions', array() );
 		if ( ! is_array( $all ) ) {
 			$all = array();

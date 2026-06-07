@@ -84,12 +84,18 @@
 				} );
 		}
 
+		// Auto-filter as the user types (debounced); also runs on open (query '').
 		useEffect( function () {
-			search( '' );
-		}, [] );
+			var timer = setTimeout( function () {
+				search( query );
+			}, 300 );
+			return function () {
+				clearTimeout( timer );
+			};
+		}, [ query ] );
 
 		var grid = null;
-		if ( loading ) {
+		if ( loading || null === items ) {
 			grid = el( Spinner, {} );
 		} else if ( items && items.length ) {
 			grid = el(
@@ -131,17 +137,7 @@
 					placeholder: __( 'Search videos…', 'coywolf-video-manager' ),
 					onChange: setQuery,
 					__nextHasNoMarginBottom: true
-				} ),
-				el(
-					Button,
-					{
-						variant: 'secondary',
-						onClick: function () {
-							search( query );
-						}
-					},
-					__( 'Search', 'coywolf-video-manager' )
-				)
+				} )
 			),
 			grid
 		);

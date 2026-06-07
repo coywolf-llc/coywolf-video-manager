@@ -409,7 +409,8 @@ class Coywolf_CVM_Block {
 			if ( '' !== $parts ) {
 				$parts .= ' &#8212; ';
 			}
-			$parts .= '<span class="coywolf-cvm-desc">' . esc_html( $description ) . '</span>';
+			// Safe HTML allowed (sanitized with wp_kses_post on save and again here).
+			$parts .= '<span class="coywolf-cvm-desc">' . wp_kses_post( $description ) . '</span>';
 		}
 		if ( '' === $parts ) {
 			return '';
@@ -671,15 +672,16 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * A schema description: the per-video description (Edit Video page), else the
-	 * post excerpt, else the video name.
+	 * A plain-text schema description: the per-video description (Edit Video page,
+	 * with any HTML stripped so JSON-LD validates), else the post excerpt, else
+	 * the video name.
 	 *
 	 * @param string $uid  Video UID.
 	 * @param string $name Video name.
 	 * @return string
 	 */
 	private function description( $uid, $name ) {
-		$stored = self::video_description( $uid );
+		$stored = trim( wp_strip_all_tags( self::video_description( $uid ) ) );
 		if ( '' !== $stored ) {
 			return $stored;
 		}
