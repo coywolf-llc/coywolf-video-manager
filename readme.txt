@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.21
+Stable tag: 1.0.22
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 4. Settings.
 
 == Changelog ==
+
+= 1.0.22 =
+* Sitemap: numeric entities for non-ASCII; Edit: don't send a blank creator to Cloudflare (#23).
 
 = 1.0.21 =
 * Description allows HTML (block) but strips it for schema/sitemap; auto-filtering video picker (#22).
