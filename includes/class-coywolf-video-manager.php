@@ -171,6 +171,24 @@ final class Coywolf_Video_Manager {
 	}
 
 	/**
+	 * Purge all local traces of a deleted video: strip its block from any
+	 * post/page, and drop its stats, poster, and cached metadata.
+	 *
+	 * @param string $uid Video UID.
+	 */
+	public function purge_video( $uid ) {
+		$this->index->remove_video( $uid );
+		$this->stats->delete_uid( $uid );
+
+		$posters = get_option( 'coywolf_cvm_posters', array() );
+		if ( is_array( $posters ) && isset( $posters[ $uid ] ) ) {
+			unset( $posters[ $uid ] );
+			update_option( 'coywolf_cvm_posters', $posters, false );
+		}
+		delete_transient( 'coywolf_cvm_meta_' . md5( $uid ) );
+	}
+
+	/**
 	 * Activation: create tables, grant the capability, register defaults and the
 	 * sitemap rewrite, then flush so the rule takes effect, and schedule the
 	 * reconcile cron.

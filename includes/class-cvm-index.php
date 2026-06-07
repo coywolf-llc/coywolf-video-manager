@@ -290,6 +290,104 @@ class Coywolf_CVM_Index {
 		$query->set( 'post__in', ! empty( $ids ) ? $ids : array( 0 ) );
 	}
 
+	/* --------------------------------------------------------------------- *
+	 * Removal
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Strip the coywolf/video block for a (deleted) video from every post/page
+	 * that embeds it. The resulting wp_update_post re-runs the indexer, which
+	 * clears the usage rows.
+	 *
+	 * @param string $uid Video UID.
+	 */
+	public function remove_video( $uid ) {
+		foreach ( $this->post_ids_for( $uid ) as $post_id ) {
+			$post = get_post( $post_id );
+			if ( ! $post || false === strpos( $post->post_content, 'coywolf/video' ) ) {
+				continue;
+			}
+			$content = serialize_blocks( $this->strip_blocks( parse_blocks( $post->post_content ), (string) $uid ) );
+			if ( $content !== $post->post_content ) {
+				wp_update_post(
+					array(
+						'ID'           => $post_id,
+						'post_content' => $content,
+					)
+				);
+			}
+		}
+	}
+
+	/**
+	 * Whether a parsed block is the video block for a given UID.
+	 *
+	 * @param array  $block Parsed block.
+	 * @param string $uid   Video UID.
+	 * @return bool
+	 */
+	private function is_video_block( $block, $uid ) {
+		return isset( $block['blockName'], $block['attrs']['videoId'] )
+			&& 'coywolf/video' === $block['blockName']
+			&& (string) $block['attrs']['videoId'] === $uid;
+	}
+
+	/**
+	 * Drop matching video blocks from a top-level block list.
+	 *
+	 * @param array  $blocks Parsed blocks.
+	 * @param string $uid    Video UID.
+	 * @return array
+	 */
+	private function strip_blocks( $blocks, $uid ) {
+		$out = array();
+		foreach ( $blocks as $block ) {
+			if ( $this->is_video_block( $block, $uid ) ) {
+				continue;
+			}
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block = $this->strip_inner_blocks( $block, $uid );
+			}
+			$out[] = $block;
+		}
+		return $out;
+	}
+
+	/**
+	 * Drop matching video blocks from a block's innerBlocks, keeping innerContent
+	 * (which interleaves markup with null placeholders) consistent.
+	 *
+	 * @param array  $block Parsed block with innerBlocks.
+	 * @param string $uid   Video UID.
+	 * @return array
+	 */
+	private function strip_inner_blocks( $block, $uid ) {
+		$new_inner   = array();
+		$new_content = array();
+		$index       = 0;
+
+		foreach ( $block['innerContent'] as $chunk ) {
+			if ( null !== $chunk ) {
+				$new_content[] = $chunk;
+				continue;
+			}
+			$child = isset( $block['innerBlocks'][ $index ] ) ? $block['innerBlocks'][ $index ] : null;
+			++$index;
+			if ( null === $child || $this->is_video_block( $child, $uid ) ) {
+				continue; // drop the block and its placeholder.
+			}
+			if ( ! empty( $child['innerBlocks'] ) ) {
+				$child = $this->strip_inner_blocks( $child, $uid );
+			}
+			$new_inner[]   = $child;
+			$new_content[] = null;
+		}
+
+		$block['innerBlocks']  = $new_inner;
+		$block['innerContent'] = $new_content;
+		return $block;
+	}
+
 	/**
 	 * Remove usage rows for posts that no longer exist or are no longer published.
 	 */

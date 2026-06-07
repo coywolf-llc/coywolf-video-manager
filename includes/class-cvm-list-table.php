@@ -3,8 +3,8 @@
  * All Videos list table.
  *
  * Lists the Cloudflare Stream library joined with local play/like counts and
- * post/page usage. Search is delegated to the Cloudflare API; pagination is
- * handled in PHP over the fetched page.
+ * post/page usage. Search (name or ID) and the Plays/Likes/Posts/Pages filter
+ * are applied locally over the fetched, cached library; pagination in PHP.
  *
  * @package CoywolfVideoManager
  */
@@ -44,13 +44,6 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	private $index;
 
 	/**
-	 * Settings.
-	 *
-	 * @var Coywolf_CVM_Settings
-	 */
-	private $settings;
-
-	/**
 	 * Last API error, if any.
 	 *
 	 * @var WP_Error|null
@@ -63,9 +56,8 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 * @param Coywolf_CVM_Cloudflare $cloudflare API client.
 	 * @param Coywolf_CVM_Stats      $stats      Stats store.
 	 * @param Coywolf_CVM_Index      $index      Usage index.
-	 * @param Coywolf_CVM_Settings   $settings   Settings.
 	 */
-	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Stats $stats, Coywolf_CVM_Index $index, Coywolf_CVM_Settings $settings ) {
+	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Stats $stats, Coywolf_CVM_Index $index ) {
 		parent::__construct(
 			array(
 				'singular' => 'video',
@@ -76,7 +68,6 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		$this->cloudflare = $cloudflare;
 		$this->stats      = $stats;
 		$this->index      = $index;
-		$this->settings   = $settings;
 	}
 
 	/**
@@ -85,20 +76,15 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 * @return array
 	 */
 	public function get_columns() {
-		$columns = array(
+		return array(
 			'cb'     => '<input type="checkbox" />',
 			'name'   => __( 'Name', 'coywolf-video-manager' ),
-			'uid'    => __( 'Video ID', 'coywolf-video-manager' ),
 			'status' => __( 'Status', 'coywolf-video-manager' ),
 			'plays'  => __( 'Plays', 'coywolf-video-manager' ),
 			'likes'  => __( 'Likes', 'coywolf-video-manager' ),
 			'posts'  => __( 'Posts', 'coywolf-video-manager' ),
 			'pages'  => __( 'Pages', 'coywolf-video-manager' ),
 		);
-		if ( $this->settings->get( 'analytics_enabled' ) ) {
-			$columns['minutes'] = __( 'Minutes viewed', 'coywolf-video-manager' );
-		}
-		return $columns;
 	}
 
 	/**
@@ -111,6 +97,8 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			'name'  => array( 'name', false ),
 			'plays' => array( 'plays', false ),
 			'likes' => array( 'likes', false ),
+			'posts' => array( 'posts', false ),
+			'pages' => array( 'pages', false ),
 		);
 	}
 
@@ -121,6 +109,34 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 */
 	public function get_bulk_actions() {
 		return array( 'delete' => __( 'Delete', 'coywolf-video-manager' ) );
+	}
+
+	/**
+	 * Plays/Likes/Posts/Pages filter dropdown, right of the bulk actions.
+	 *
+	 * @param string $which top|bottom.
+	 */
+	protected function extra_tablenav( $which ) {
+		if ( 'top' !== $which ) {
+			return;
+		}
+		$current = isset( $_REQUEST['cvm_filter'] ) ? sanitize_key( wp_unslash( $_REQUEST['cvm_filter'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$options = array(
+			''      => __( 'All videos', 'coywolf-video-manager' ),
+			'plays' => __( 'Has plays', 'coywolf-video-manager' ),
+			'likes' => __( 'Has likes', 'coywolf-video-manager' ),
+			'posts' => __( 'On posts', 'coywolf-video-manager' ),
+			'pages' => __( 'On pages', 'coywolf-video-manager' ),
+		);
+		echo '<div class="alignleft actions">';
+		echo '<label class="screen-reader-text" for="coywolf-cvm-filter">' . esc_html__( 'Filter videos', 'coywolf-video-manager' ) . '</label>';
+		echo '<select name="cvm_filter" id="coywolf-cvm-filter" class="coywolf-cvm-filter">';
+		foreach ( $options as $value => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $current, $value, false ), esc_html( $label ) );
+		}
+		echo '</select>';
+		submit_button( __( 'Filter', 'coywolf-video-manager' ), '', 'cvm-filter-apply', false );
+		echo '</div>';
 	}
 
 	/**
@@ -149,16 +165,9 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			admin_url( 'admin.php' )
 		);
 
-		$name = '' !== $item['name'] ? $item['name'] : __( '(untitled)', 'coywolf-video-manager' );
-
-		$embed = sprintf(
-			'<iframe src="%s" loading="lazy" style="border:none;width:100%%;aspect-ratio:16/9;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>',
-			esc_url( $this->cloudflare->iframe_url( $item['uid'] ) )
-		);
-
+		$name    = '' !== $item['name'] ? $item['name'] : __( '(untitled)', 'coywolf-video-manager' );
 		$actions = array(
 			'edit'  => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'coywolf-video-manager' ) . '</a>',
-			'embed' => '<a href="#" class="coywolf-cvm-copy-embed" data-embed="' . esc_attr( $embed ) . '">' . esc_html__( 'Copy embed', 'coywolf-video-manager' ) . '</a>',
 			'trash' => '<a href="' . esc_url( $this->delete_url( $item['uid'] ) ) . '" class="coywolf-cvm-delete">' . esc_html__( 'Delete', 'coywolf-video-manager' ) . '</a>',
 		);
 
@@ -183,16 +192,6 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			),
 			'coywolf_cvm_delete_' . $uid
 		);
-	}
-
-	/**
-	 * Video ID column.
-	 *
-	 * @param array $item Row.
-	 * @return string
-	 */
-	public function column_uid( $item ) {
-		return '<code>' . esc_html( $item['uid'] ) . '</code>';
 	}
 
 	/**
@@ -227,16 +226,6 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 */
 	public function column_likes( $item ) {
 		return esc_html( number_format_i18n( $item['likes'] ) );
-	}
-
-	/**
-	 * Minutes-viewed column (analytics).
-	 *
-	 * @param array $item Row.
-	 * @return string
-	 */
-	public function column_minutes( $item ) {
-		return isset( $item['minutes'] ) ? esc_html( number_format_i18n( $item['minutes'] ) ) : '—';
 	}
 
 	/**
@@ -309,15 +298,9 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	public function prepare_items() {
 		$this->_column_headers = array( $this->get_columns(), array(), $this->get_sortable_columns() );
 
-		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$force  = isset( $_REQUEST['cvm_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$force = isset( $_REQUEST['cvm_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-		$videos = $this->cloudflare->list_videos(
-			array(
-				'search' => $search,
-				'force'  => $force,
-			)
-		);
+		$videos = $this->cloudflare->list_videos( array( 'force' => $force ) );
 		if ( is_wp_error( $videos ) ) {
 			$this->error = $videos;
 			$this->items = array();
@@ -358,18 +341,38 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		}
 		unset( $row );
 
-		if ( $this->settings->get( 'analytics_enabled' ) ) {
-			$minutes = $this->cloudflare->minutes_viewed_map();
-			foreach ( $rows as &$row ) {
-				$row['minutes'] = isset( $minutes[ $row['uid'] ] ) ? (int) $minutes[ $row['uid'] ] : 0;
-			}
-			unset( $row );
+		// Search by name OR video ID.
+		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( '' !== $search ) {
+			$needle = strtolower( $search );
+			$rows   = array_values(
+				array_filter(
+					$rows,
+					static function ( $row ) use ( $needle ) {
+						return false !== strpos( strtolower( $row['name'] ), $needle )
+							|| false !== strpos( strtolower( $row['uid'] ), $needle );
+					}
+				)
+			);
+		}
+
+		// Filter by Plays/Likes/Posts/Pages > 0.
+		$filter = isset( $_REQUEST['cvm_filter'] ) ? sanitize_key( wp_unslash( $_REQUEST['cvm_filter'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( in_array( $filter, array( 'plays', 'likes', 'posts', 'pages' ), true ) ) {
+			$rows = array_values(
+				array_filter(
+					$rows,
+					static function ( $row ) use ( $filter ) {
+						return (int) $row[ $filter ] > 0;
+					}
+				)
+			);
 		}
 
 		// Sort.
 		$orderby = isset( $_REQUEST['orderby'] ) ? sanitize_key( wp_unslash( $_REQUEST['orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$order   = ( isset( $_REQUEST['order'] ) && 'desc' === strtolower( sanitize_key( wp_unslash( $_REQUEST['order'] ) ) ) ) ? 'desc' : 'asc'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( in_array( $orderby, array( 'name', 'plays', 'likes' ), true ) ) {
+		if ( in_array( $orderby, array( 'name', 'plays', 'likes', 'posts', 'pages' ), true ) ) {
 			usort(
 				$rows,
 				static function ( $a, $b ) use ( $orderby ) {

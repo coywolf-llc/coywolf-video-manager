@@ -2,8 +2,8 @@
  * Coywolf Video Manager — admin scripts.
  *
  * Vanilla JS (no build step). Wires up whatever controls are present on the
- * current plugin screen: All Videos (copy-embed, delete-confirm), Edit Video
- * (save, poster preview, captions), and Upload Video (direct upload + polling).
+ * current plugin screen: All Videos (search reset, filter, delete-confirm),
+ * Edit Video (save, poster, captions, copy ID, delete), Upload (direct upload).
  */
 ( function () {
 	'use strict';
@@ -36,8 +36,6 @@
 		return ( e && e.message ) ? e.message : 'Request failed.';
 	}
 
-	/* ----- All Videos: copy embed + delete confirm ----- */
-
 	function copyText( text ) {
 		if ( navigator.clipboard && navigator.clipboard.writeText ) {
 			return navigator.clipboard.writeText( text );
@@ -55,18 +53,28 @@
 		return Promise.resolve();
 	}
 
-	function wireCopyEmbed() {
-		forEach( document.querySelectorAll( '.coywolf-cvm-copy-embed' ), function ( el ) {
-			el.addEventListener( 'click', function ( e ) {
-				e.preventDefault();
-				copyText( el.getAttribute( 'data-embed' ) || '' ).then( function () {
-					window.alert( i18n.copied || 'Copied.' );
-				} );
-			} );
-		} );
-	}
+	/* ----- All Videos: search reset, filter, delete confirm ----- */
 
-	function wireDeleteConfirm() {
+	function wireListControls() {
+		// Submit (reset) when the native search "X" clears the field.
+		var search = document.querySelector( '.search-box input[type="search"]' );
+		if ( search ) {
+			search.addEventListener( 'search', function () {
+				if ( '' === search.value && search.form ) {
+					search.form.submit();
+				}
+			} );
+		}
+		// Apply the Plays/Likes/Posts/Pages filter on selection.
+		var filter = document.querySelector( 'select.coywolf-cvm-filter' );
+		if ( filter ) {
+			filter.addEventListener( 'change', function () {
+				if ( filter.form ) {
+					filter.form.submit();
+				}
+			} );
+		}
+		// Confirm row deletes.
 		forEach( document.querySelectorAll( 'a.coywolf-cvm-delete' ), function ( el ) {
 			el.addEventListener( 'click', function ( e ) {
 				if ( ! window.confirm( i18n.confirmDelete || 'Delete?' ) ) {
@@ -85,23 +93,36 @@
 		}
 		var uid = root.getAttribute( 'data-uid' );
 		var duration = parseFloat( root.getAttribute( 'data-duration' ) ) || 0;
+		var listUrl = root.getAttribute( 'data-list-url' );
+		var saveStatus = root.querySelector( '.coywolf-cvm-save-status' );
+		var previewImg = document.getElementById( 'cvm-poster-img' );
+
+		function posterMode() {
+			var checked = document.querySelector( 'input[name="cvm-poster-mode"]:checked' );
+			return checked ? checked.value : 'timestamp';
+		}
 
 		// Save.
-		var saveBtn = document.getElementById( 'cvm-save' );
-		var saveStatus = root.querySelector( '.coywolf-cvm-save-status' );
-		saveBtn.addEventListener( 'click', function () {
+		document.getElementById( 'cvm-save' ).addEventListener( 'click', function () {
+			var saveBtn = this;
 			var origins = document.getElementById( 'cvm-origins' ).value
-				.split( /\n+/ )
-				.map( function ( s ) { return s.trim(); } )
-				.filter( Boolean );
-			var posterTime = parseFloat( document.getElementById( 'cvm-poster-time' ).value ) || 0;
+				.split( /\n+/ ).map( function ( s ) { return s.trim(); } ).filter( Boolean );
+			var mode = posterMode();
 			var data = {
 				name: document.getElementById( 'cvm-name' ).value,
 				creator: document.getElementById( 'cvm-creator' ).value,
 				allowedOrigins: origins,
-				requireSignedURLs: document.getElementById( 'cvm-signed' ).checked,
-				thumbnailTimestampPct: duration > 0 ? Math.min( 1, posterTime / duration ) : 0
+				posterMode: mode
 			};
+			if ( 'image' === mode ) {
+				data.posterImageId = document.getElementById( 'cvm-poster-image-id' ).value;
+				data.posterImageUrl = document.getElementById( 'cvm-poster-image-url' ).value;
+			} else {
+				var posterTime = parseFloat( document.getElementById( 'cvm-poster-time' ).value ) || 0;
+				data.posterTime = posterTime;
+				data.thumbnailTimestampPct = duration > 0 ? Math.min( 1, posterTime / duration ) : 0;
+			}
+
 			saveBtn.disabled = true;
 			saveStatus.textContent = '…';
 			rest( '/videos/' + encodeURIComponent( uid ), 'POST', data ).then( function () {
@@ -113,24 +134,116 @@
 			} );
 		} );
 
-		// Poster preview.
+		// Poster mode toggle.
+		var tsBox = root.querySelector( '.cvm-poster-timestamp' );
+		var imgBox = root.querySelector( '.cvm-poster-image' );
+		forEach( document.querySelectorAll( 'input[name="cvm-poster-mode"]' ), function ( radio ) {
+			radio.addEventListener( 'change', function () {
+				var isImage = 'image' === posterMode();
+				if ( tsBox ) {
+					tsBox.style.display = isImage ? 'none' : '';
+				}
+				if ( imgBox ) {
+					imgBox.style.display = isImage ? '' : 'none';
+				}
+				updatePosterPreview();
+			} );
+		} );
+
+		// Poster timestamp → live thumbnail.
 		var range = document.getElementById( 'cvm-poster-time' );
 		var out = document.getElementById( 'cvm-poster-time-out' );
-		var img = document.getElementById( 'cvm-poster-img' );
 		var timer = null;
-		range.addEventListener( 'input', function () {
-			out.textContent = range.value + 's';
-			if ( timer ) {
-				window.clearTimeout( timer );
+		if ( range ) {
+			range.addEventListener( 'input', function () {
+				out.textContent = range.value + 's';
+				if ( timer ) {
+					window.clearTimeout( timer );
+				}
+				timer = window.setTimeout( updatePosterPreview, 350 );
+			} );
+		}
+
+		function updatePosterPreview() {
+			if ( ! previewImg ) {
+				return;
 			}
-			timer = window.setTimeout( function () {
-				rest( '/thumbnail/' + encodeURIComponent( uid ) + '?time=' + encodeURIComponent( range.value ) ).then( function ( res ) {
-					if ( res && res.url ) {
-						img.src = res.url;
+			if ( 'image' === posterMode() ) {
+				var url = document.getElementById( 'cvm-poster-image-url' ).value;
+				if ( url ) {
+					previewImg.src = url;
+				}
+				return;
+			}
+			rest( '/thumbnail/' + encodeURIComponent( uid ) + '?time=' + encodeURIComponent( range ? range.value : 0 ) ).then( function ( res ) {
+				if ( res && res.url ) {
+					previewImg.src = res.url;
+				}
+			} ).catch( function () {} );
+		}
+
+		// Poster image: Media Library.
+		var pick = document.getElementById( 'cvm-poster-pick' );
+		if ( pick && window.wp && window.wp.media ) {
+			pick.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				var frame = window.wp.media( {
+					title: i18n.mediaTitle || 'Select poster image',
+					library: { type: 'image' },
+					multiple: false,
+					button: { text: i18n.mediaButton || 'Use image' }
+				} );
+				frame.on( 'select', function () {
+					var att = frame.state().get( 'selection' ).first().toJSON();
+					document.getElementById( 'cvm-poster-image-id' ).value = att.id;
+					document.getElementById( 'cvm-poster-image-url' ).value = att.url;
+					if ( previewImg ) {
+						previewImg.src = att.url;
 					}
-				} ).catch( function () {} );
-			}, 350 );
+				} );
+				frame.open();
+			} );
+		}
+
+		// Copy the Video ID.
+		forEach( document.querySelectorAll( '.coywolf-cvm-copy-id' ), function ( el ) {
+			var hint = el.querySelector( '.coywolf-cvm-copy-hint' );
+			function doCopy() {
+				copyText( el.getAttribute( 'data-id' ) || '' ).then( function () {
+					if ( ! hint ) {
+						return;
+					}
+					var prev = hint.textContent;
+					hint.textContent = i18n.copiedId || 'Copied!';
+					window.setTimeout( function () { hint.textContent = prev; }, 1500 );
+				} );
+			}
+			el.addEventListener( 'click', doCopy );
+			el.addEventListener( 'keydown', function ( e ) {
+				if ( 'Enter' === e.key || ' ' === e.key ) {
+					e.preventDefault();
+					doCopy();
+				}
+			} );
 		} );
+
+		// Delete.
+		var deleteBtn = document.getElementById( 'cvm-delete' );
+		if ( deleteBtn ) {
+			deleteBtn.addEventListener( 'click', function () {
+				if ( ! window.confirm( i18n.confirmDelete || 'Delete?' ) ) {
+					return;
+				}
+				deleteBtn.disabled = true;
+				saveStatus.textContent = '…';
+				rest( '/videos/' + encodeURIComponent( uid ), 'DELETE' ).then( function () {
+					window.location = listUrl + '&coywolf_cvm_deleted=1';
+				} ).catch( function ( e ) {
+					deleteBtn.disabled = false;
+					saveStatus.textContent = '✗ ' + errMsg( e );
+				} );
+			} );
+		}
 
 		wireCaptions( root, uid );
 	}
@@ -231,14 +344,11 @@
 				return;
 			}
 			var origins = document.getElementById( 'cvm-up-origins' ).value
-				.split( /\n+/ )
-				.map( function ( s ) { return s.trim(); } )
-				.filter( Boolean );
+				.split( /\n+/ ).map( function ( s ) { return s.trim(); } ).filter( Boolean );
 			var opts = {
 				name: document.getElementById( 'cvm-up-name' ).value || file.name,
 				creator: document.getElementById( 'cvm-up-creator' ).value,
 				allowedOrigins: origins,
-				requireSignedURLs: document.getElementById( 'cvm-up-signed' ).checked,
 				maxDurationSeconds: 21600
 			};
 
@@ -283,20 +393,16 @@
 			}
 
 			function pollStatus( uid, tries ) {
+				var editUrl = listUrl + '&action=edit&uid=' + encodeURIComponent( uid );
 				if ( tries > 60 ) {
-					statusEl.textContent = i18n.stillProcessing || 'Still processing — check All Videos shortly.';
-					startBtn.disabled = false;
+					// Processing is taking a while; send them to the Edit page anyway.
+					window.location = editUrl;
 					return;
 				}
 				rest( '/videos/' + encodeURIComponent( uid ) ).then( function ( v ) {
-					if ( v && v.ready ) {
-						var editUrl = listUrl + '&action=edit&uid=' + encodeURIComponent( uid );
-						statusEl.innerHTML = '✓ ' + ( i18n.ready || 'Ready!' ) + ' <a href="' + editUrl + '">' + ( i18n.editNow || 'Edit this video' ) + '</a>';
+					if ( v && ( v.ready || 'error' === v.state ) ) {
 						bar.style.width = '100%';
-						startBtn.disabled = false;
-					} else if ( v && 'error' === v.state ) {
-						statusEl.textContent = '✗ ' + ( i18n.processError || 'Cloudflare could not process this video.' );
-						startBtn.disabled = false;
+						window.location = editUrl;
 					} else {
 						window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
 					}
@@ -308,8 +414,7 @@
 	}
 
 	onReady( function () {
-		wireCopyEmbed();
-		wireDeleteConfirm();
+		wireListControls();
 		wireEdit();
 		wireUpload();
 	} );

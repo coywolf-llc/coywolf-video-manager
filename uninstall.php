@@ -25,6 +25,8 @@ $coywolf_cvm_options = array(
 	'coywolf_cvm_signing_key',
 	'coywolf_cvm_like_salt',
 	'coywolf_cvm_version',
+	'coywolf_cvm_posters',
+	'coywolf_cvm_list_keys',
 );
 foreach ( $coywolf_cvm_options as $coywolf_cvm_option ) {
 	delete_option( $coywolf_cvm_option );
@@ -69,3 +71,7 @@ if ( $coywolf_cvm_ts ) {
 
 // Per-post embed index.
 delete_post_meta_by_key( 'coywolf_cvm_videos' );
+
+// Per-user sticky list filters.
+delete_metadata( 'user', 0, 'coywolf_cvm_search', '', true );
+delete_metadata( 'user', 0, 'coywolf_cvm_filter', '', true );
