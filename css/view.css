@@ -4,155 +4,103 @@
 	margin: 0 0 1.5em;
 }
 
-.coywolf-cvm-player {
-	position: relative;
+/* Responsive iframe wrapper (padding-top + max-width come from inline styles). */
+.coywolf-cvm-frame {
+	background: #000;
+	overflow: hidden;
 }
 
-.coywolf-cvm-player > iframe,
-.coywolf-cvm-lazy > iframe {
+.coywolf-cvm-poster {
+	border: none;
+}
+
+.coywolf-cvm-video {
 	display: block;
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border: 0;
+	background: #000;
 }
 
-.coywolf-cvm-lazy {
-	background-color: #000;
-	background-size: cover;
-	background-position: center;
-}
-
-.coywolf-cvm-lazy > iframe {
-	background: transparent;
-}
-
-/* Lightbox trigger (poster + play button). */
-.coywolf-cvm-lightbox-trigger {
-	position: relative;
-	display: block;
-	width: 100%;
-	aspect-ratio: 16 / 9;
+/* Video name. Unique class so it overrides generic/image figcaption styles. */
+figcaption.coywolf-cvm-title {
+	margin: 0.7em 0 0.35em;
 	padding: 0;
-	border: 0;
-	cursor: pointer;
-	background-color: #000;
-	background-size: cover;
-	background-position: center;
+	text-align: left;
+	font-weight: 700;
+	font-size: 1.15em;
+	line-height: 1.3;
+	color: inherit;
 }
 
-.coywolf-cvm-play-icon {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 72px;
-	height: 72px;
-	transform: translate(-50%, -50%);
-	border-radius: 50%;
-	background: rgba( 0, 0, 0, 0.55 );
-	transition: background 0.2s ease;
-}
-
-.coywolf-cvm-lightbox-trigger:hover .coywolf-cvm-play-icon {
-	background: rgba( 0, 0, 0, 0.75 );
-}
-
-.coywolf-cvm-play-icon::after {
-	content: "";
-	position: absolute;
-	top: 50%;
-	left: 54%;
-	transform: translate(-50%, -50%);
-	border-style: solid;
-	border-width: 14px 0 14px 24px;
-	border-color: transparent transparent transparent #fff;
-}
-
-/* Plays / likes row. */
+/* Like / views / date row. */
 .coywolf-cvm-meta {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 1em;
-	margin-top: 0.6em;
+	gap: 0.75em 1em;
 	font-size: 0.9em;
+	color: #606060;
 }
 
 .coywolf-cvm-like {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.4em;
-	padding: 0.25em 0.8em;
-	border: 1px solid currentColor;
+	gap: 0.45em;
+	margin: 0;
+	padding: 0.4em 0.9em;
+	border: 0;
 	border-radius: 999px;
-	background: transparent;
-	color: inherit;
+	background: #f2f2f2;
+	color: #0f0f0f;
+	font: inherit;
+	line-height: 1;
 	cursor: pointer;
-	line-height: 1.4;
+	transition: background 0.15s ease, color 0.15s ease;
 }
 
 .coywolf-cvm-like:hover {
-	background: rgba( 0, 0, 0, 0.05 );
+	background: #e5e5e5;
+}
+
+.coywolf-cvm-like:disabled {
+	opacity: 0.7;
+	cursor: default;
+}
+
+.coywolf-cvm-thumb {
+	width: 20px;
+	height: 20px;
+	fill: currentColor;
+	transform-origin: 60% 60%;
 }
 
 .coywolf-cvm-like.is-liked {
-	color: #e0245e;
-	border-color: #e0245e;
+	color: #065fd4;
 }
 
-.coywolf-cvm-heart::before {
-	content: "♥";
+.coywolf-cvm-like-count {
+	font-variant-numeric: tabular-nums;
 }
 
-.coywolf-cvm-hide-count .coywolf-cvm-like-count {
+.coywolf-cvm-like-count.is-empty {
 	display: none;
 }
 
-.coywolf-cvm-plays {
-	opacity: 0.8;
+.coywolf-cvm-like.is-animating .coywolf-cvm-thumb {
+	animation: coywolf-cvm-pop 0.35s ease;
 }
 
-/* Lightbox overlay. */
-.coywolf-cvm-lightbox-open {
-	overflow: hidden;
+@keyframes coywolf-cvm-pop {
+	0% { transform: scale( 1 ); }
+	40% { transform: scale( 1.35 ) rotate( -8deg ); }
+	100% { transform: scale( 1 ); }
 }
 
-.coywolf-cvm-lightbox-overlay {
-	position: fixed;
-	inset: 0;
-	z-index: 100000;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 4vmin;
-	background: rgba( 0, 0, 0, 0.85 );
+.coywolf-cvm-views,
+.coywolf-cvm-date {
+	color: #606060;
 }
 
-.coywolf-cvm-lightbox-inner {
-	position: relative;
-	width: min( 92vw, 1200px );
-}
-
-.coywolf-cvm-lightbox-inner > iframe {
-	display: block;
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border: 0;
-	background: #000;
-}
-
-.coywolf-cvm-lightbox-close {
-	position: absolute;
-	top: -2.4em;
-	right: 0;
-	width: 2em;
-	height: 2em;
-	padding: 0;
-	border: 0;
-	border-radius: 4px;
-	background: transparent;
-	color: #fff;
-	font-size: 1.6em;
-	line-height: 1;
-	cursor: pointer;
+.coywolf-cvm-views.is-empty {
+	display: none;
 }
 
 .screen-reader-text {

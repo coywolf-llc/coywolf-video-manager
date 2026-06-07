@@ -81,7 +81,6 @@ class Coywolf_CVM_Settings {
 			'plays_in_schema'     => true,
 			'likes_enabled'       => true,
 			'likes_show_count'    => true,
-			'lightbox_enabled'    => true,
 			'sitemap_enabled'     => false,
 			'analytics_enabled'   => false,
 			'signed_urls_enabled' => false,
@@ -192,7 +191,7 @@ class Coywolf_CVM_Settings {
 		add_settings_section( 'coywolf_cvm_embed', __( 'Embed defaults', 'coywolf-video-manager' ), array( $this, 'render_embed_intro' ), self::PAGE );
 		add_settings_field( 'embed', __( 'Default options', 'coywolf-video-manager' ), array( $this, 'render_embed_field' ), self::PAGE, 'coywolf_cvm_embed' );
 
-		add_settings_section( 'coywolf_cvm_engagement', __( 'Plays, likes & lightbox', 'coywolf-video-manager' ), '__return_false', self::PAGE );
+		add_settings_section( 'coywolf_cvm_engagement', __( 'Views & likes', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'engagement', __( 'Engagement', 'coywolf-video-manager' ), array( $this, 'render_engagement_field' ), self::PAGE, 'coywolf_cvm_engagement' );
 
 		add_settings_section( 'coywolf_cvm_advanced', __( 'Sitemap, analytics & private videos', 'coywolf-video-manager' ), '__return_false', self::PAGE );
@@ -244,7 +243,7 @@ class Coywolf_CVM_Settings {
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
 
-		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'lightbox_enabled', 'sitemap_enabled', 'analytics_enabled', 'signed_urls_enabled' ) as $flag ) {
+		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled', 'analytics_enabled', 'signed_urls_enabled' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
@@ -383,14 +382,13 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Plays / likes / lightbox checkboxes.
+	 * Views / likes checkboxes.
 	 */
 	public function render_engagement_field() {
-		$this->checkbox( 'plays_enabled', __( 'Show the number of plays (and include it in schema)', 'coywolf-video-manager' ) );
-		$this->checkbox( 'plays_in_schema', __( 'Include play count in VideoObject schema', 'coywolf-video-manager' ) );
+		$this->checkbox( 'plays_enabled', __( 'Show the number of views', 'coywolf-video-manager' ) );
+		$this->checkbox( 'plays_in_schema', __( 'Include view count in VideoObject schema', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_enabled', __( 'Show a like button', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_show_count', __( 'Show the number of likes', 'coywolf-video-manager' ) );
-		$this->checkbox( 'lightbox_enabled', __( 'Open videos in a lightbox on click', 'coywolf-video-manager' ) );
 	}
 
 	/**

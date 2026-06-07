@@ -1,11 +1,12 @@
 /**
- * Coywolf Video Manager — front-end player, plays/likes, lightbox, lazy-load.
+ * Coywolf Video Manager — front-end player, plays/likes, lazy-load.
  * Vanilla JS, no build step.
  */
 ( function () {
 	'use strict';
 
 	var cfg = window.coywolfCVMView || {};
+	var i18n = cfg.i18n || { view: 'view', views: 'views' };
 	var sdkPromise = null;
 
 	function forEach( list, fn ) {
@@ -20,7 +21,7 @@
 		}
 	}
 
-	function api( path, body ) {
+	function api( path ) {
 		var headers = { 'Content-Type': 'application/json' };
 		if ( cfg.nonce ) {
 			headers['X-WP-Nonce'] = cfg.nonce;
@@ -28,8 +29,7 @@
 		return fetch( cfg.restUrl + path, {
 			method: 'POST',
 			headers: headers,
-			credentials: 'same-origin',
-			body: body ? JSON.stringify( body ) : null
+			credentials: 'same-origin'
 		} ).then( function ( r ) {
 			return r.json();
 		} );
@@ -58,143 +58,11 @@
 	}
 
 	/**
-	 * Count a play once the viewer is genuinely past ~2s (avoids autoplay/preroll
-	 * inflation). Cloudflare player via the Stream SDK; the OSS players via the
-	 * native <video> 'timeupdate'.
+	 * A counter that records one view once playback passes ~2s (so muted-autoplay
+	 * previews don't inflate it), then updates the figure's views label.
 	 */
-	function trackPlays( iframe, container ) {
-		var uid = container.getAttribute( 'data-uid' );
-		if ( ! uid ) {
-			return;
-		}
-		loadStreamSDK().then( function ( Stream ) {
-			if ( ! Stream ) {
-				return;
-			}
-			var player = Stream( iframe );
-			var counted = false;
-			player.addEventListener( 'timeupdate', function () {
-				if ( counted || ! player.currentTime || player.currentTime <= 2 ) {
-					return;
-				}
-				counted = true;
-				api( '/play/' + encodeURIComponent( uid ) ).then( function ( res ) {
-					if ( res && 'undefined' !== typeof res.plays ) {
-						updatePlays( container, res.plays );
-					}
-				} ).catch( function () {} );
-			} );
-		} );
-	}
-
-	function updatePlays( container, plays ) {
-		var figure = container.parentNode;
-		if ( ! figure ) {
-			return;
-		}
-		var countEl = figure.querySelector( '.coywolf-cvm-plays-count' );
-		if ( countEl ) {
-			countEl.textContent = formatNumber( plays );
-		}
-	}
-
-	function activateInline( container ) {
-		var iframe = container.querySelector( 'iframe' );
-		if ( iframe ) {
-			trackPlays( iframe, container );
-		}
-	}
-
-	function activateLazy( container ) {
-		var iframe = container.querySelector( 'iframe' );
-		if ( ! iframe ) {
-			return;
-		}
-		var io = new IntersectionObserver( function ( entries ) {
-			forEach( entries, function ( entry ) {
-				if ( entry.isIntersecting ) {
-					var src = iframe.getAttribute( 'data-src' );
-					if ( src && ! iframe.src ) {
-						iframe.src = src;
-						trackPlays( iframe, container );
-					}
-					io.disconnect();
-				}
-			} );
-		}, { rootMargin: '200px' } );
-		io.observe( container );
-	}
-
-	function activateLightbox( container ) {
-		var trigger = container.querySelector( '.coywolf-cvm-lightbox-trigger' );
-		if ( ! trigger ) {
-			return;
-		}
-		trigger.addEventListener( 'click', function () {
-			openLightbox( container, trigger );
-		} );
-	}
-
-	function openLightbox( container, trigger ) {
-		var url = container.getAttribute( 'data-iframe' );
-		if ( ! url ) {
-			return;
-		}
-		var overlay = document.createElement( 'div' );
-		overlay.className = 'coywolf-cvm-lightbox-overlay';
-		overlay.setAttribute( 'role', 'dialog' );
-		overlay.setAttribute( 'aria-modal', 'true' );
-
-		var inner = document.createElement( 'div' );
-		inner.className = 'coywolf-cvm-lightbox-inner';
-
-		var closeBtn = document.createElement( 'button' );
-		closeBtn.type = 'button';
-		closeBtn.className = 'coywolf-cvm-lightbox-close';
-		closeBtn.setAttribute( 'aria-label', 'Close' );
-		closeBtn.innerHTML = '&times;';
-
-		var iframe = document.createElement( 'iframe' );
-		iframe.src = url + ( url.indexOf( '?' ) > -1 ? '&' : '?' ) + 'autoplay=true';
-		iframe.setAttribute( 'allow', 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;' );
-		iframe.setAttribute( 'allowfullscreen', 'true' );
-
-		inner.appendChild( closeBtn );
-		inner.appendChild( iframe );
-		overlay.appendChild( inner );
-		document.body.appendChild( overlay );
-		document.body.classList.add( 'coywolf-cvm-lightbox-open' );
-
-		function close() {
-			overlay.parentNode && overlay.parentNode.removeChild( overlay );
-			document.body.classList.remove( 'coywolf-cvm-lightbox-open' );
-			document.removeEventListener( 'keydown', onKey );
-			if ( trigger && trigger.focus ) {
-				trigger.focus();
-			}
-		}
-		function onKey( e ) {
-			if ( 'Escape' === e.key ) {
-				close();
-			}
-		}
-
-		closeBtn.addEventListener( 'click', close );
-		overlay.addEventListener( 'click', function ( e ) {
-			if ( e.target === overlay ) {
-				close();
-			}
-		} );
-		document.addEventListener( 'keydown', onKey );
-		closeBtn.focus();
-		trackPlays( iframe, container );
-	}
-
-	/**
-	 * Count one play once playback passes ~2s, regardless of player.
-	 */
-	function playCounter( container ) {
-		var uid = container.getAttribute( 'data-uid' );
+	function viewCounter( figure ) {
+		var uid = figure.getAttribute( 'data-uid' );
 		var counted = false;
 		return function ( currentTime ) {
 			if ( counted || ! uid || ! currentTime || currentTime <= 2 ) {
@@ -203,11 +71,66 @@
 			counted = true;
 			api( '/play/' + encodeURIComponent( uid ) ).then( function ( res ) {
 				if ( res && 'undefined' !== typeof res.plays ) {
-					updatePlays( container, res.plays );
+					updateViews( figure, res.plays );
 				}
 			} ).catch( function () {} );
 		};
 	}
+
+	function updateViews( figure, n ) {
+		var el = figure.querySelector( '.coywolf-cvm-views' );
+		if ( ! el ) {
+			return;
+		}
+		n = Number( n ) || 0;
+		if ( n > 0 ) {
+			el.textContent = formatNumber( n ) + ' ' + ( 1 === n ? i18n.view : i18n.views );
+			el.classList.remove( 'is-empty' );
+		} else {
+			el.classList.add( 'is-empty' );
+		}
+	}
+
+	/* ----- Cloudflare iframe ----- */
+
+	function trackCloudflare( iframe, figure ) {
+		loadStreamSDK().then( function ( Stream ) {
+			if ( ! Stream ) {
+				return;
+			}
+			var player = Stream( iframe );
+			var counter = viewCounter( figure );
+			player.addEventListener( 'timeupdate', function () {
+				counter( player.currentTime );
+			} );
+		} );
+	}
+
+	function activateCloudflare( figure, lazy ) {
+		var iframe = figure.querySelector( 'iframe' );
+		if ( ! iframe ) {
+			return;
+		}
+		if ( lazy ) {
+			var io = new IntersectionObserver( function ( entries ) {
+				forEach( entries, function ( entry ) {
+					if ( entry.isIntersecting ) {
+						var src = iframe.getAttribute( 'data-src' );
+						if ( src && ! iframe.src ) {
+							iframe.src = src;
+							trackCloudflare( iframe, figure );
+						}
+						io.disconnect();
+					}
+				} );
+			}, { rootMargin: '200px' } );
+			io.observe( figure );
+		} else {
+			trackCloudflare( iframe, figure );
+		}
+	}
+
+	/* ----- Open-source players (Plyr / Video.js) ----- */
 
 	function attachHls( video, hls ) {
 		if ( ! hls ) {
@@ -226,10 +149,10 @@
 		}
 	}
 
-	function initOSS( video, container ) {
-		var player = container.getAttribute( 'data-player' );
+	function initOSS( video, figure ) {
+		var player = figure.getAttribute( 'data-player' );
 		var hls = video.getAttribute( 'data-hls' );
-		var counter = playCounter( container );
+		var counter = viewCounter( figure );
 
 		if ( 'videojs' === player && window.videojs ) {
 			var vp = window.videojs( video, { fluid: true } );
@@ -251,8 +174,8 @@
 		} );
 	}
 
-	function activateOSS( container, lazy ) {
-		var video = container.querySelector( 'video.coywolf-cvm-video' );
+	function activateOSS( figure, lazy ) {
+		var video = figure.querySelector( 'video.coywolf-cvm-video' );
 		if ( ! video ) {
 			return;
 		}
@@ -260,14 +183,31 @@
 			var io = new IntersectionObserver( function ( entries ) {
 				forEach( entries, function ( entry ) {
 					if ( entry.isIntersecting ) {
-						initOSS( video, container );
+						initOSS( video, figure );
 						io.disconnect();
 					}
 				} );
 			}, { rootMargin: '200px' } );
-			io.observe( container );
+			io.observe( figure );
 		} else {
-			initOSS( video, container );
+			initOSS( video, figure );
+		}
+	}
+
+	/* ----- Likes ----- */
+
+	function setLikeCount( btn, n ) {
+		var el = btn.querySelector( '.coywolf-cvm-like-count' );
+		if ( ! el ) {
+			return;
+		}
+		n = Number( n ) || 0;
+		if ( n > 0 ) {
+			el.textContent = formatNumber( n );
+			el.classList.remove( 'is-empty' );
+		} else {
+			el.textContent = '';
+			el.classList.add( 'is-empty' );
 		}
 	}
 
@@ -286,14 +226,18 @@
 
 			btn.addEventListener( 'click', function () {
 				btn.disabled = true;
+				// Animate immediately for responsiveness.
+				btn.classList.remove( 'is-animating' );
+				void btn.offsetWidth; // restart the animation.
+				btn.classList.add( 'is-animating' );
+
 				api( '/like/' + encodeURIComponent( uid ) ).then( function ( res ) {
 					btn.disabled = false;
 					if ( ! res ) {
 						return;
 					}
-					var countEl = btn.querySelector( '.coywolf-cvm-like-count' );
-					if ( countEl && 'undefined' !== typeof res.likes ) {
-						countEl.textContent = formatNumber( res.likes );
+					if ( 'undefined' !== typeof res.likes ) {
+						setLikeCount( btn, res.likes );
 					}
 					if ( res.liked ) {
 						btn.setAttribute( 'aria-pressed', 'true' );
@@ -316,18 +260,16 @@
 	}
 
 	function init() {
-		forEach( document.querySelectorAll( '.coywolf-cvm-player' ), function ( container ) {
-			var mode = container.getAttribute( 'data-mode' );
-			if ( 'lightbox' === mode ) {
-				activateLightbox( container );
-			} else if ( 'lazy' === mode ) {
-				activateLazy( container );
-			} else if ( 'oss-inline' === mode ) {
-				activateOSS( container, false );
+		forEach( document.querySelectorAll( '.coywolf-cvm' ), function ( figure ) {
+			var mode = figure.getAttribute( 'data-mode' ) || 'inline';
+			if ( 'oss-inline' === mode ) {
+				activateOSS( figure, false );
 			} else if ( 'oss-lazy' === mode ) {
-				activateOSS( container, true );
+				activateOSS( figure, true );
+			} else if ( 'lazy' === mode ) {
+				activateCloudflare( figure, true );
 			} else {
-				activateInline( container );
+				activateCloudflare( figure, false );
 			}
 		} );
 		wireLikes();

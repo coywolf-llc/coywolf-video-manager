@@ -46,8 +46,7 @@
 		showPlays: 'plays_enabled',
 		playsInSchema: 'plays_in_schema',
 		enableLikes: 'likes_enabled',
-		showLikeCount: 'likes_show_count',
-		lightbox: 'lightbox_enabled'
+		showLikeCount: 'likes_show_count'
 	};
 
 	function defaultBool( attr ) {
@@ -302,11 +301,10 @@
 			el(
 				PanelBody,
 				{ title: __( 'Engagement & schema', 'coywolf-video-manager' ), initialOpen: false },
-				inheritToggle( 'showPlays', __( 'Show play count', 'coywolf-video-manager' ) ),
-				inheritToggle( 'playsInSchema', __( 'Include plays in schema', 'coywolf-video-manager' ) ),
+				inheritToggle( 'showPlays', __( 'Show view count', 'coywolf-video-manager' ) ),
+				inheritToggle( 'playsInSchema', __( 'Include views in schema', 'coywolf-video-manager' ) ),
 				inheritToggle( 'enableLikes', __( 'Show like button', 'coywolf-video-manager' ) ),
 				inheritToggle( 'showLikeCount', __( 'Show like count', 'coywolf-video-manager' ) ),
-				inheritToggle( 'lightbox', __( 'Open in a lightbox', 'coywolf-video-manager' ) ),
 				el( TextControl, {
 					label: __( 'Player accent color (hex)', 'coywolf-video-manager' ),
 					value: a.primaryColor,
@@ -352,10 +350,13 @@
 					setPickerOpen( false );
 				},
 				onSelect: function ( v ) {
+					var ratio = ( v.width > 0 && v.height > 0 ) ? ( v.height / v.width ) : 0;
 					setAttributes( {
 						videoId: v.uid,
 						videoName: v.name || v.uid,
-						duration: v.duration || 0
+						duration: v.duration || 0,
+						aspectRatio: ratio,
+						uploaded: v.created || ''
 					} );
 					setPickerOpen( false );
 				}

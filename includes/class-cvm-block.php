@@ -3,9 +3,10 @@
  * The coywolf/video editor block.
  *
  * A dynamic block: the editor stores attributes (and a static link fallback in
- * save()), while the front end is server-rendered here — player embed, poster,
- * lightbox/lazy handling, plays/likes UI, and VideoObject schema. The block only
- * registers once Cloudflare credentials are connected.
+ * save()), while the front end is server-rendered here — a responsive Cloudflare
+ * Stream embed (or an open-source player) wrapped in a <figure>, with the video
+ * name in a <figcaption>, a YouTube-style like/views/date row, and VideoObject
+ * schema. The block only registers once Cloudflare credentials are connected.
  *
  * @package CoywolfVideoManager
  */
@@ -18,6 +19,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Registers and renders the video block.
  */
 class Coywolf_CVM_Block {
+
+	/**
+	 * Poster / schema thumbnail width requested from Cloudflare (px).
+	 */
+	const POSTER_WIDTH = 1200;
 
 	/**
 	 * Cloudflare client.
@@ -56,7 +62,6 @@ class Coywolf_CVM_Block {
 		'playsInSchema' => 'plays_in_schema',
 		'enableLikes'   => 'likes_enabled',
 		'showLikeCount' => 'likes_show_count',
-		'lightbox'      => 'lightbox_enabled',
 	);
 
 	/**
@@ -113,6 +118,10 @@ class Coywolf_CVM_Block {
 				array(
 					'restUrl' => esc_url_raw( rest_url( 'coywolf-cvm/v1' ) ),
 					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'i18n'    => array(
+						'view'  => __( 'view', 'coywolf-video-manager' ),
+						'views' => __( 'views', 'coywolf-video-manager' ),
+					),
 				)
 			) . ';',
 			'before'
@@ -153,18 +162,40 @@ class Coywolf_CVM_Block {
 			return '';
 		}
 
-		$cfg          = $this->resolve( $attributes );
-		$name         = isset( $attributes['videoName'] ) && '' !== $attributes['videoName'] ? (string) $attributes['videoName'] : get_the_title();
-		$duration     = isset( $attributes['duration'] ) ? (float) $attributes['duration'] : 0;
-		$start        = isset( $attributes['startTime'] ) ? max( 0, (int) $attributes['startTime'] ) : 0;
-		$primary      = isset( $attributes['primaryColor'] ) ? (string) $attributes['primaryColor'] : '';
-		$playback_id  = $this->playback_id( $uid );
-		$poster       = $this->poster_url( $attributes, $playback_id );
+		$cfg      = $this->resolve( $attributes );
+		$name     = isset( $attributes['videoName'] ) && '' !== $attributes['videoName'] ? (string) $attributes['videoName'] : get_the_title();
+		$duration = isset( $attributes['duration'] ) ? (float) $attributes['duration'] : 0;
+		$start    = isset( $attributes['startTime'] ) ? max( 0, (int) $attributes['startTime'] ) : 0;
+		$primary  = isset( $attributes['primaryColor'] ) ? (string) $attributes['primaryColor'] : '';
+
+		// Aspect ratio (height/width) and upload date come from the block, with a
+		// cached API lookup as a fallback for older blocks or when signing.
+		$aspect     = isset( $attributes['aspectRatio'] ) ? (float) $attributes['aspectRatio'] : 0;
+		$uploaded   = isset( $attributes['uploaded'] ) ? (string) $attributes['uploaded'] : '';
+		$signing_on = $this->settings->get( 'signed_urls_enabled' ) && $this->cloudflare->has_signing_key();
+
+		if ( $aspect <= 0 || '' === $uploaded || $signing_on ) {
+			$meta = $this->video_meta( $uid );
+			if ( $aspect <= 0 && $meta['width'] > 0 && $meta['height'] > 0 ) {
+				$aspect = $meta['height'] / $meta['width'];
+			}
+			if ( '' === $uploaded && '' !== $meta['created'] ) {
+				$uploaded = $meta['created'];
+			}
+			$signed_required = $signing_on && $meta['signed'];
+		} else {
+			$signed_required = false;
+		}
+		if ( $aspect <= 0 ) {
+			$aspect = 0.5625; // 16:9 fallback.
+		}
+		$pct = round( $aspect * 100, 4 );
+
+		$playback_id = $this->playback_id( $uid, $signed_required );
+		$poster      = $this->poster_url( $attributes, $playback_id );
 
 		// Cloudflare iframe params.
-		$params = array(
-			'preload' => $cfg['preload'],
-		);
+		$params = array( 'preload' => $cfg['preload'] );
 		if ( $cfg['autoplay'] ) {
 			$params['autoplay'] = 'true';
 			$params['muted']    = 'true'; // browsers require muted autoplay.
@@ -186,54 +217,41 @@ class Coywolf_CVM_Block {
 		if ( '' !== $poster ) {
 			$params['poster'] = $poster;
 		}
+		$params['title'] = $name;
+
 		$iframe_url = $this->cloudflare->iframe_url( $playback_id, $params );
+		$hls_url    = $this->cloudflare->hls_url( $playback_id );
+		$counts     = $this->stats->get_counts( $uid );
 
-		$counts = $this->stats->get_counts( $uid );
+		$maxwidth = ( 'maxwidth' === ( isset( $attributes['sizeMode'] ) ? $attributes['sizeMode'] : 'responsive' ) )
+			? max( 100, (int) ( isset( $attributes['maxWidth'] ) ? $attributes['maxWidth'] : 800 ) )
+			: 0;
 
-		// Sizing.
-		$style = '';
-		if ( 'maxwidth' === ( isset( $attributes['sizeMode'] ) ? $attributes['sizeMode'] : 'responsive' ) ) {
-			$max   = isset( $attributes['maxWidth'] ) ? (int) $attributes['maxWidth'] : 800;
-			$style = 'max-width:' . max( 100, $max ) . 'px;';
-		}
-
-		// Mode: lightbox always uses the Cloudflare player iframe; otherwise the
-		// chosen player (Cloudflare iframe, or an open-source <video>).
-		if ( $cfg['lightbox'] ) {
-			$mode = 'lightbox';
-		} elseif ( 'cloudflare' !== $cfg['player'] ) {
-			$mode = $cfg['lazy'] ? 'oss-lazy' : 'oss-inline';
+		$is_oss = ( 'cloudflare' !== $cfg['player'] );
+		if ( $is_oss ) {
 			$this->enqueue_player( $cfg['player'] );
-		} else {
-			$mode = $cfg['lazy'] ? 'lazy' : 'inline';
 		}
+		$mode = ( $is_oss ? 'oss-' : '' ) . ( $cfg['lazy'] ? 'lazy' : 'inline' );
 
-		$hls_url = $this->cloudflare->hls_url( $playback_id );
+		$player = $is_oss
+			? $this->oss_markup( $hls_url, $poster, $name, $cfg, $pct, $maxwidth )
+			: $this->iframe_markup( $iframe_url, $name, $cfg, $pct, $maxwidth, $poster );
 
 		$wrapper = get_block_wrapper_attributes(
 			array(
-				'class' => 'coywolf-cvm',
-				'style' => $style,
+				'class'       => 'coywolf-cvm',
+				'data-uid'    => $uid,
+				'data-player' => $cfg['player'],
+				'data-mode'   => $mode,
 			)
 		);
 
 		ob_start();
 		?>
 		<figure <?php echo $wrapper; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-			<div class="coywolf-cvm-player coywolf-cvm-mode-<?php echo esc_attr( $mode ); ?>"
-				data-uid="<?php echo esc_attr( $uid ); ?>"
-				data-player="<?php echo esc_attr( $cfg['player'] ); ?>"
-				data-mode="<?php echo esc_attr( $mode ); ?>"
-				data-iframe="<?php echo esc_url( $iframe_url ); ?>"
-				data-hls="<?php echo esc_url( $hls_url ); ?>"
-				<?php echo $cfg['autoplay'] ? 'data-autoplay="1"' : ''; ?>
-				<?php echo $cfg['loop'] ? 'data-loop="1"' : ''; ?>
-				<?php echo $cfg['mute'] ? 'data-muted="1"' : ''; ?>
-				<?php echo $cfg['controls'] ? 'data-controls="1"' : 'data-controls="0"'; ?>
-			>
-				<?php echo $this->player_markup( $mode, $iframe_url, $hls_url, $poster, $name, $cfg ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			</div>
-			<?php echo $this->meta_markup( $uid, $cfg, $counts ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $player; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $this->caption_markup( $name ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $this->meta_markup( $uid, $cfg, $counts, $uploaded ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</figure>
 		<?php echo $this->schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php
@@ -241,67 +259,72 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * Build the player markup for the chosen mode.
+	 * Cloudflare iframe embed, responsive via a padding-top wrapper (matches the
+	 * Cloudflare dashboard embed), optionally capped by a max-width.
 	 *
-	 * @param string $mode       inline|lazy|lightbox|oss-inline|oss-lazy.
-	 * @param string $iframe_url Cloudflare iframe URL.
-	 * @param string $hls_url    HLS manifest URL (open-source players).
-	 * @param string $poster     Poster URL.
+	 * @param string $iframe_url Iframe URL.
 	 * @param string $name       Video name.
 	 * @param array  $cfg        Resolved config.
+	 * @param float  $pct        padding-top percentage (height/width * 100).
+	 * @param int    $maxwidth   Max width in px, or 0 for full width.
+	 * @param string $poster     Poster URL.
 	 * @return string
 	 */
-	private function player_markup( $mode, $iframe_url, $hls_url, $poster, $name, $cfg ) {
+	private function iframe_markup( $iframe_url, $name, $cfg, $pct, $maxwidth, $poster ) {
 		$allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+		$abs   = 'border:none;position:absolute;top:0;left:0;height:100%;width:100%;';
 
-		if ( 'lightbox' === $mode ) {
-			$bg = '' !== $poster ? ' style="background-image:url(' . esc_url( $poster ) . ');"' : '';
-			ob_start();
-			?>
-			<button type="button" class="coywolf-cvm-lightbox-trigger"<?php echo $bg; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> aria-label="<?php echo esc_attr( sprintf( /* translators: %s: video title. */ __( 'Play %s', 'coywolf-video-manager' ), $name ) ); ?>">
-				<span class="coywolf-cvm-play-icon" aria-hidden="true"></span>
-			</button>
-			<?php
-			return (string) ob_get_clean();
+		if ( $cfg['lazy'] ) {
+			$img   = '' !== $poster
+				? '<img class="coywolf-cvm-poster" src="' . esc_url( $poster ) . '" alt="" loading="lazy" style="' . $abs . 'object-fit:cover;" />'
+				: '';
+			$inner = $img . '<iframe data-src="' . esc_url( $iframe_url ) . '" loading="lazy" title="' . esc_attr( $name ) . '" style="' . $abs . '" allow="' . esc_attr( $allow ) . '" allowfullscreen="true"></iframe>';
+		} else {
+			$inner = '<iframe src="' . esc_url( $iframe_url ) . '" loading="lazy" title="' . esc_attr( $name ) . '" style="' . $abs . '" allow="' . esc_attr( $allow ) . '" allowfullscreen="true"></iframe>';
 		}
 
-		// Open-source players: a <video> element fed the HLS manifest by view.js.
-		if ( 'oss-inline' === $mode || 'oss-lazy' === $mode ) {
-			$classes = 'coywolf-cvm-video';
-			if ( 'videojs' === $cfg['player'] ) {
-				$classes .= ' video-js';
-			}
-			$html  = '<video class="' . esc_attr( $classes ) . '" playsinline';
-			$html .= $cfg['controls'] ? ' controls' : '';
-			$html .= $cfg['loop'] ? ' loop' : '';
-			$html .= ( $cfg['autoplay'] || $cfg['mute'] ) ? ' muted' : '';
-			$html .= $cfg['autoplay'] ? ' autoplay' : '';
-			$html .= ' preload="' . esc_attr( $cfg['preload'] ) . '"';
-			if ( '' !== $poster ) {
-				$html .= ' poster="' . esc_url( $poster ) . '"';
-			}
-			$html .= ' data-hls="' . esc_url( $hls_url ) . '"';
-			$html .= ' title="' . esc_attr( $name ) . '"></video>';
-			return $html;
-		}
+		$frame = '<div class="coywolf-cvm-frame" style="position:relative;padding-top:' . esc_attr( $pct ) . '%;">' . $inner . '</div>';
 
-		if ( 'lazy' === $mode ) {
-			$bg = '' !== $poster ? ' style="background-image:url(' . esc_url( $poster ) . ');"' : '';
-			return sprintf(
-				'<div class="coywolf-cvm-lazy"%1$s><iframe data-src="%2$s" loading="lazy" title="%3$s" allow="%4$s" allowfullscreen="true"></iframe></div>',
-				$bg, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped above.
-				esc_url( $iframe_url ),
-				esc_attr( $name ),
-				esc_attr( $allow )
-			);
+		if ( $maxwidth > 0 ) {
+			return '<div class="coywolf-cvm-bound" style="margin:0 auto;max-width:' . (int) $maxwidth . 'px;">' . $frame . '</div>';
 		}
+		return $frame;
+	}
 
-		return sprintf(
-			'<iframe src="%1$s" loading="lazy" title="%2$s" allow="%3$s" allowfullscreen="true"></iframe>',
-			esc_url( $iframe_url ),
-			esc_attr( $name ),
-			esc_attr( $allow )
-		);
+	/**
+	 * Open-source player markup: a <video> fed the HLS manifest by view.js.
+	 *
+	 * @param string $hls_url  HLS manifest URL.
+	 * @param string $poster   Poster URL.
+	 * @param string $name     Video name.
+	 * @param array  $cfg      Resolved config.
+	 * @param float  $pct      padding-top percentage (used for aspect-ratio).
+	 * @param int    $maxwidth Max width in px, or 0 for full width.
+	 * @return string
+	 */
+	private function oss_markup( $hls_url, $poster, $name, $cfg, $pct, $maxwidth ) {
+		$classes = 'coywolf-cvm-video';
+		if ( 'videojs' === $cfg['player'] ) {
+			$classes .= ' video-js';
+		}
+		$video  = '<video class="' . esc_attr( $classes ) . '" playsinline';
+		$video .= $cfg['controls'] ? ' controls' : '';
+		$video .= $cfg['loop'] ? ' loop' : '';
+		$video .= ( $cfg['autoplay'] || $cfg['mute'] ) ? ' muted' : '';
+		$video .= $cfg['autoplay'] ? ' autoplay' : '';
+		$video .= ' preload="' . esc_attr( $cfg['preload'] ) . '"';
+		if ( '' !== $poster ) {
+			$video .= ' poster="' . esc_url( $poster ) . '"';
+		}
+		$video .= ' data-hls="' . esc_url( $hls_url ) . '"';
+		$video .= ' title="' . esc_attr( $name ) . '"';
+		$video .= ' style="width:100%;aspect-ratio:100 / ' . esc_attr( $pct ) . ';"';
+		$video .= '></video>';
+
+		if ( $maxwidth > 0 ) {
+			return '<div class="coywolf-cvm-bound" style="margin:0 auto;max-width:' . (int) $maxwidth . 'px;">' . $video . '</div>';
+		}
+		return $video;
 	}
 
 	/**
@@ -321,38 +344,87 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * Build the plays/likes UI.
+	 * The video-name figcaption (unique class so it overrides image figcaptions).
 	 *
-	 * @param string $uid    Video UID.
-	 * @param array  $cfg    Resolved config.
-	 * @param array  $counts { plays, likes }.
+	 * @param string $name Video name.
 	 * @return string
 	 */
-	private function meta_markup( $uid, $cfg, $counts ) {
-		if ( ! $cfg['showPlays'] && ! $cfg['enableLikes'] ) {
+	private function caption_markup( $name ) {
+		if ( '' === $name ) {
 			return '';
 		}
-		ob_start();
-		echo '<div class="coywolf-cvm-meta">';
-		if ( $cfg['enableLikes'] ) {
-			$show_count = $cfg['showLikeCount'] ? '' : ' coywolf-cvm-hide-count';
-			printf(
-				'<button type="button" class="coywolf-cvm-like%1$s" data-uid="%2$s" aria-pressed="false"><span class="coywolf-cvm-heart" aria-hidden="true"></span><span class="coywolf-cvm-like-count">%3$s</span><span class="screen-reader-text">%4$s</span></button>',
-				esc_attr( $show_count ),
-				esc_attr( $uid ),
-				esc_html( number_format_i18n( $counts['likes'] ) ),
-				esc_html__( 'Like this video', 'coywolf-video-manager' )
-			);
-		}
+		return '<figcaption class="coywolf-cvm-title">' . esc_html( $name ) . '</figcaption>';
+	}
+
+	/**
+	 * The like / views / upload-date row.
+	 *
+	 * @param string $uid      Video UID.
+	 * @param array  $cfg      Resolved config.
+	 * @param array  $counts   { plays, likes }.
+	 * @param string $uploaded Cloudflare created timestamp (ISO-8601).
+	 * @return string
+	 */
+	private function meta_markup( $uid, $cfg, $counts, $uploaded ) {
+		$like  = $cfg['enableLikes'] ? $this->like_button( $uid, (int) $counts['likes'], $cfg['showLikeCount'] ) : '';
+		$views = '';
+		$date  = '';
+
 		if ( $cfg['showPlays'] ) {
-			printf(
-				'<span class="coywolf-cvm-plays"><span class="coywolf-cvm-plays-count">%1$s</span> %2$s</span>',
-				esc_html( number_format_i18n( $counts['plays'] ) ),
-				esc_html( _n( 'play', 'plays', (int) $counts['plays'], 'coywolf-video-manager' ) )
-			);
+			$plays       = (int) $counts['plays'];
+			$views_class = 'coywolf-cvm-views' . ( $plays < 1 ? ' is-empty' : '' );
+			$views_text  = $plays > 0
+				? sprintf(
+					/* translators: %s: number of views. */
+					_n( '%s view', '%s views', $plays, 'coywolf-video-manager' ),
+					number_format_i18n( $plays )
+				)
+				: '';
+			$views = '<span class="' . esc_attr( $views_class ) . '">' . esc_html( $views_text ) . '</span>';
 		}
-		echo '</div>';
-		return (string) ob_get_clean();
+
+		if ( '' !== $uploaded ) {
+			$ts = strtotime( $uploaded );
+			if ( $ts ) {
+				$date = sprintf(
+					'<span class="coywolf-cvm-date">%s</span>',
+					esc_html(
+						sprintf(
+							/* translators: %s: human-readable time difference, e.g. "7 months". */
+							__( '%s ago', 'coywolf-video-manager' ),
+							human_time_diff( $ts )
+						)
+					)
+				);
+			}
+		}
+
+		if ( '' === $like && '' === $views && '' === $date ) {
+			return '';
+		}
+		return '<div class="coywolf-cvm-meta">' . $like . $views . $date . '</div>';
+	}
+
+	/**
+	 * The YouTube-style like button (thumbs-up + count; count hidden when zero).
+	 *
+	 * @param string $uid        Video UID.
+	 * @param int    $likes      Like count.
+	 * @param bool   $show_count Whether to show the count at all.
+	 * @return string
+	 */
+	private function like_button( $uid, $likes, $show_count ) {
+		$count_class = 'coywolf-cvm-like-count' . ( $likes < 1 ? ' is-empty' : '' );
+		$count_html  = $show_count
+			? '<span class="' . esc_attr( $count_class ) . '">' . esc_html( $likes > 0 ? number_format_i18n( $likes ) : '' ) . '</span>'
+			: '';
+
+		return sprintf(
+			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span><svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>%3$s</button>',
+			esc_attr( $uid ),
+			esc_html__( 'Like this video', 'coywolf-video-manager' ),
+			$count_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
+		);
 	}
 
 	/**
@@ -368,20 +440,20 @@ class Coywolf_CVM_Block {
 	 * @return string
 	 */
 	private function schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url ) {
+		$thumbnail = '' !== $poster
+			? $poster
+			: $this->cloudflare->thumbnail_url( $uid, array( 'width' => self::POSTER_WIDTH ) );
+
 		$schema = array(
-			'@context'    => 'https://schema.org',
-			'@type'       => 'VideoObject',
-			'name'        => $name,
-			'description' => $this->description( $name ),
-			'uploadDate'  => get_the_date( 'c' ),
-			'embedUrl'    => $iframe_url,
-			'contentUrl'  => $this->cloudflare->watch_url( $uid ),
+			'@context'     => 'https://schema.org',
+			'@type'        => 'VideoObject',
+			'name'         => $name,
+			'description'  => $this->description( $name ),
+			'thumbnailUrl' => array( $thumbnail ),
+			'uploadDate'   => get_the_date( 'c' ),
+			'embedUrl'     => $iframe_url,
+			'contentUrl'   => $this->cloudflare->watch_url( $uid ),
 		);
-		if ( '' !== $poster ) {
-			$schema['thumbnailUrl'] = array( $poster );
-		} else {
-			$schema['thumbnailUrl'] = array( $this->cloudflare->thumbnail_url( $uid ) );
-		}
 		if ( $duration > 0 ) {
 			$schema['duration'] = $this->iso8601_duration( $duration );
 		}
@@ -431,17 +503,14 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * Resolve the playback id — UID, or a signed token for private videos when
-	 * signed-URL support is on and a key exists.
+	 * Resolve the playback id — UID, or a signed token for private videos.
 	 *
-	 * @param string $uid Video UID.
+	 * @param string $uid    Video UID.
+	 * @param bool   $signed Whether this video requires a signed URL.
 	 * @return string
 	 */
-	private function playback_id( $uid ) {
-		if ( ! $this->settings->get( 'signed_urls_enabled' ) || ! $this->cloudflare->has_signing_key() ) {
-			return $uid;
-		}
-		if ( ! $this->requires_signing( $uid ) ) {
+	private function playback_id( $uid, $signed ) {
+		if ( ! $signed ) {
 			return $uid;
 		}
 		$token = $this->cloudflare->sign_token( $uid );
@@ -449,26 +518,38 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * Whether a video requires signed URLs, cached for an hour to avoid an API
-	 * call on every render.
+	 * Cached per-video metadata (dimensions, created date, signed flag) to avoid
+	 * an API call on every render.
 	 *
 	 * @param string $uid Video UID.
-	 * @return bool
+	 * @return array { width, height, created, signed }.
 	 */
-	private function requires_signing( $uid ) {
-		$cache  = 'coywolf_cvm_signed_' . md5( $uid );
+	private function video_meta( $uid ) {
+		$cache  = 'coywolf_cvm_meta_' . md5( $uid );
 		$cached = get_transient( $cache );
-		if ( false !== $cached ) {
-			return '1' === $cached;
+		if ( is_array( $cached ) ) {
+			return $cached;
 		}
-		$video    = $this->cloudflare->get_video( $uid );
-		$requires = ! is_wp_error( $video ) && ! empty( $video['requireSignedURLs'] );
-		set_transient( $cache, $requires ? '1' : '0', HOUR_IN_SECONDS );
-		return $requires;
+		$meta  = array(
+			'width'   => 0,
+			'height'  => 0,
+			'created' => '',
+			'signed'  => false,
+		);
+		$video = $this->cloudflare->get_video( $uid );
+		if ( ! is_wp_error( $video ) ) {
+			$meta['width']   = isset( $video['input']['width'] ) ? (int) $video['input']['width'] : 0;
+			$meta['height']  = isset( $video['input']['height'] ) ? (int) $video['input']['height'] : 0;
+			$meta['created'] = isset( $video['created'] ) ? (string) $video['created'] : '';
+			$meta['signed']  = ! empty( $video['requireSignedURLs'] );
+		}
+		set_transient( $cache, $meta, HOUR_IN_SECONDS );
+		return $meta;
 	}
 
 	/**
-	 * Resolve the poster URL from the block's poster settings.
+	 * Resolve the poster URL — a custom image, or a large (>=1200px) Cloudflare
+	 * thumbnail at the chosen timestamp.
 	 *
 	 * @param array  $attributes  Block attributes.
 	 * @param string $playback_id Playback id.
@@ -480,7 +561,13 @@ class Coywolf_CVM_Block {
 			return esc_url_raw( $attributes['posterUrl'] );
 		}
 		$time = isset( $attributes['posterTime'] ) ? max( 0, (float) $attributes['posterTime'] ) : 0;
-		return $this->cloudflare->thumbnail_url( $playback_id, array( 'time' => $time . 's' ) );
+		return $this->cloudflare->thumbnail_url(
+			$playback_id,
+			array(
+				'time'  => $time . 's',
+				'width' => self::POSTER_WIDTH,
+			)
+		);
 	}
 
 	/**

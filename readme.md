@@ -15,12 +15,11 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 
 ### Features
 
-- **Video block** — search your entire Stream library and embed a video in seconds. Per-block control over size (responsive or max-width), poster image (by timestamp or from the Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
+- **Video block** — search your entire Stream library and embed a responsive video in a `<figure>` with the name in a `<figcaption>`. Per-block control over size (responsive or max-width), poster image (by timestamp or from the Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
 - **Three players** — the Cloudflare Stream player by default, plus bundled open-source [Plyr](https://plyr.io/) and [Video.js](https://videojs.com/) options, all playing Cloudflare's adaptive HLS.
-- **Plays & likes** — Cloudflare's API doesn't expose engagement counts, so the plugin records plays and likes locally in WordPress and can show them on the post and include them in the video schema.
-- **Video schema** — automatic `VideoObject` JSON-LD with thumbnail, duration, upload date, and optional play/like interaction counts.
-- **Lightbox** — open and play a video in a lightbox on click.
-- **All Videos screen** — a sortable table of every video with plays, likes, and how many posts and pages embed each one, linking through to filtered views.
+- **Likes, views & upload date** — a YouTube-style row under each video: a like button, the local view count, and when the video was uploaded to Cloudflare. Cloudflare's API doesn't expose likes or views, so the plugin records them locally in WordPress.
+- **Video schema** — automatic `VideoObject` JSON-LD with a large (1200px) thumbnail, duration, upload date, and optional view/like interaction counts.
+- **All Videos screen** — a sortable table of every video with views, likes, and how many posts and pages embed each one, linking through to filtered views.
 - **Edit Video screen** — rename, set the creator, manage allowed origins, control signed-URL protection, pick the poster timestamp with a live preview, and add or AI-generate captions.
 - **Upload to Cloudflare** — upload videos straight from WordPress (resumable for large files), with the same options as the Edit screen.
 - **Signed URLs** — play private (signed-URL) videos by minting short-lived tokens server-side.
@@ -47,7 +46,7 @@ Paste both into **Videos → Settings** and use **Test connection** to verify. T
 1. Upload the plugin to `wp-content/plugins/coywolf-video-manager` or install the zip from **Plugins → Add New → Upload Plugin**.
 2. Activate it.
 3. Go to **Videos → Settings**, enter your Cloudflare Account ID and API token, and click **Test connection**.
-4. Configure your defaults (player, embed options, plays/likes, lightbox, sitemap), then add the **Video** block to a post.
+4. Configure your defaults (player, embed options, views/likes, sitemap), then add the **Video** block to a post.
 
 ## Frequently Asked Questions
 
