@@ -64,7 +64,7 @@ class Coywolf_CVM_REST {
 	 */
 	public function register_routes() {
 		$admin  = array( $this, 'admin_permission' );
-		$public = '__return_true';
+		$public = array( $this, 'public_permission' );
 		$uid    = array(
 			'uid' => array(
 				'validate_callback' => static function ( $value ) {
@@ -208,6 +208,30 @@ class Coywolf_CVM_REST {
 	 */
 	public function admin_permission() {
 		return current_user_can( Coywolf_Video_Manager::CAPABILITY );
+	}
+
+	/**
+	 * Permission for the public play/like routes. Anonymous visitors are allowed
+	 * (gated only by rate-limiting + dedupe so counts work on cached pages);
+	 * logged-in users must present a valid REST nonce, which protects their
+	 * session from CSRF. (WordPress core also enforces this for cookie auth; this
+	 * makes the policy explicit.)
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool|WP_Error
+	 */
+	public function public_permission( $request ) {
+		if ( is_user_logged_in() ) {
+			$nonce = $request->get_header( 'X-WP-Nonce' );
+			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+				return new WP_Error(
+					'coywolf_cvm_bad_nonce',
+					__( 'Your session token is invalid or expired. Please reload the page.', 'coywolf-video-manager' ),
+					array( 'status' => 403 )
+				);
+			}
+		}
+		return true;
 	}
 
 	/* --------------------------------------------------------------------- *
