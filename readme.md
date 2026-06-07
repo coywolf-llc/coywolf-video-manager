@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.1
+- **Version:** 1.0.2
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -84,6 +84,9 @@ No data is sent anywhere except Cloudflare, and only as required to manage and p
 4. Settings.
 
 ## Changelog
+
+### 1.0.2
+- Load and harden the front-end CSS so it overrides the theme (#3).
 
 ### 1.0.1
 - Bigger poster, remove lightbox, accurate responsive embed, and like/views/date row (#2).
