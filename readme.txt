@@ -31,7 +31,7 @@ Features:
 
 == Cloudflare API access ==
 
-Settings are locked until you connect a Cloudflare account. You need your Account ID (in the Cloudflare dashboard sidebar) and an API token created at My Profile > API Tokens with the "Account > Stream > Edit" permission (and optionally "Account > Account Analytics > Read" for the watch-time column). Paste both into Videos > Settings and click Test connection. The token is stored server-side and never exposed to the browser. You can instead define COYWOLF_CVM_API_TOKEN and COYWOLF_CVM_ACCOUNT_ID in wp-config.php.
+Settings are locked until you connect a Cloudflare account. You need your Account ID (in the Cloudflare dashboard sidebar) and an API token created at My Profile > API Tokens with the "Account > Stream > Edit" permission. Paste both into Videos > Settings and click Test connection. The token is stored server-side and never exposed to the browser. You can instead define COYWOLF_CVM_API_TOKEN and COYWOLF_CVM_ACCOUNT_ID in wp-config.php.
 
 == Installation ==
 
@@ -48,11 +48,7 @@ No. Videos live on Cloudflare Stream. WordPress stores only what Cloudflare does
 
 = How are plays and likes counted? =
 
-Cloudflare's API does not expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback so muted autoplay previews do not inflate the number. Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics; for delivery data, enable the watch-time column.
-
-= Can I play private videos? =
-
-Yes. If a video requires signed URLs, enable signed-URL support and the plugin mints a short-lived token server-side so the video still plays in the block.
+Cloudflare's API does not expose play or like counts, so the plugin records them locally. A play is counted once per visitor session after about two seconds of playback so muted autoplay previews do not inflate the number. Likes are deduplicated per visitor. These are engagement signals, not billing-grade analytics.
 
 = Will my embeds break if I deactivate the plugin? =
 
