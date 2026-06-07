@@ -48,7 +48,9 @@
 		showPlays: 'plays_enabled',
 		playsInSchema: 'plays_in_schema',
 		enableLikes: 'likes_enabled',
-		showLikeCount: 'likes_show_count'
+		showLikeCount: 'likes_show_count',
+		showName: 'show_title',
+		showDescription: 'show_desc'
 	};
 
 	function defaultBool( attr ) {
@@ -303,6 +305,8 @@
 			el(
 				PanelBody,
 				{ title: __( 'Appearance', 'coywolf-video-manager' ), initialOpen: false },
+				inheritToggle( 'showName', __( 'Show video name', 'coywolf-video-manager' ) ),
+				inheritToggle( 'showDescription', __( 'Show video description', 'coywolf-video-manager' ) ),
 				el( SelectControl, {
 					label: __( 'Alignment', 'coywolf-video-manager' ),
 					value: a.contentAlign || '',

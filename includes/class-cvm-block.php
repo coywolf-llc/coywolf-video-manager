@@ -58,10 +58,12 @@ class Coywolf_CVM_Block {
 		'preload'       => 'preload',
 		'mute'          => 'mute',
 		'lazy'          => 'lazy',
-		'showPlays'     => 'plays_enabled',
-		'playsInSchema' => 'plays_in_schema',
-		'enableLikes'   => 'likes_enabled',
-		'showLikeCount' => 'likes_show_count',
+		'showPlays'       => 'plays_enabled',
+		'playsInSchema'   => 'plays_in_schema',
+		'enableLikes'     => 'likes_enabled',
+		'showLikeCount'   => 'likes_show_count',
+		'showName'        => 'show_title',
+		'showDescription' => 'show_desc',
 	);
 
 	/**
@@ -206,6 +208,10 @@ class Coywolf_CVM_Block {
 		$weight = (string) $this->settings->get( 'title_weight' );
 		if ( $weight !== (string) $defaults['title_weight'] ) {
 			$vars['--cvm-title-weight'] = $weight;
+		}
+		$desc_weight = (string) $this->settings->get( 'desc_weight' );
+		if ( $desc_weight !== (string) $defaults['desc_weight'] ) {
+			$vars['--cvm-desc-weight'] = $desc_weight;
 		}
 		$align = (string) $this->settings->get( 'align' );
 		if ( $align !== (string) $defaults['align'] ) {
@@ -361,7 +367,7 @@ class Coywolf_CVM_Block {
 		?>
 		<figure <?php echo $wrapper; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			<?php echo $player; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			<?php echo $this->caption_markup( $name ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $this->caption_markup( $name, self::video_description( $uid ), $cfg ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php echo $this->meta_markup( $uid, $cfg, $counts, $uploaded ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</figure>
 		<?php echo $this->schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -455,16 +461,30 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * The video-name figcaption (unique class so it overrides image figcaptions).
+	 * The name/description figcaption (unique class so it overrides image
+	 * figcaptions). Shows the name (when enabled) and, when enabled and present,
+	 * the description appended after an em dash.
 	 *
-	 * @param string $name Video name.
+	 * @param string $name        Video name.
+	 * @param string $description Per-video description (may be empty).
+	 * @param array  $cfg         Resolved config (showName, showDescription).
 	 * @return string
 	 */
-	private function caption_markup( $name ) {
-		if ( '' === $name ) {
+	private function caption_markup( $name, $description, $cfg ) {
+		$parts = '';
+		if ( ! empty( $cfg['showName'] ) && '' !== $name ) {
+			$parts .= '<strong class="coywolf-cvm-name">' . esc_html( $name ) . '</strong>';
+		}
+		if ( ! empty( $cfg['showDescription'] ) && '' !== $description ) {
+			if ( '' !== $parts ) {
+				$parts .= ' &#8212; ';
+			}
+			$parts .= '<span class="coywolf-cvm-desc">' . esc_html( $description ) . '</span>';
+		}
+		if ( '' === $parts ) {
 			return '';
 		}
-		return '<figcaption class="coywolf-cvm-title">' . esc_html( $name ) . '</figcaption>';
+		return '<figcaption class="coywolf-cvm-title">' . $parts . '</figcaption>';
 	}
 
 	/**

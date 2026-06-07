@@ -17,8 +17,9 @@
 
 .coywolf-cvm {
 	--cvm-title-color: inherit;
-	--cvm-title-size: 1.15rem;
+	--cvm-title-size: 1rem;
 	--cvm-title-weight: 700;
+	--cvm-desc-weight: 400;
 	--cvm-align: left;
 	--cvm-like-color: #0f0f0f;
 	--cvm-like-active: var( --cvm-like-color );
@@ -63,7 +64,8 @@
 	background: #000;
 }
 
-/* Video name. */
+/* Name & description. The figcaption sets the shared size/color/alignment;
+   the name and description carry their own font weights. */
 .coywolf-cvm figcaption.coywolf-cvm-title {
 	display: block;
 	float: none;
@@ -72,12 +74,20 @@
 	margin: 0.7em 0 0.4em;
 	padding: 0;
 	text-align: var( --cvm-align );
-	font-weight: var( --cvm-title-weight );
+	font-weight: var( --cvm-desc-weight );
 	font-size: var( --cvm-title-size );
 	font-style: normal;
 	line-height: 1.3;
 	color: var( --cvm-title-color );
 	background: none;
+}
+
+.coywolf-cvm .coywolf-cvm-name {
+	font-weight: var( --cvm-title-weight );
+}
+
+.coywolf-cvm .coywolf-cvm-desc {
+	font-weight: var( --cvm-desc-weight );
 }
 
 /* Like / views / date row. */
