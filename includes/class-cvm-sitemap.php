@@ -197,7 +197,7 @@ class Coywolf_CVM_Sitemap {
 				$xml .= "\t\t<video:video>\n";
 				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
 				$xml .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
-				$xml .= "\t\t\t<video:description>" . esc_xml( $desc ) . "</video:description>\n";
+				$xml .= "\t\t\t<video:description>" . esc_xml( wp_strip_all_tags( $desc ) ) . "</video:description>\n";
 				$xml .= "\t\t\t<video:content_loc>" . esc_url( $this->cloudflare->watch_url( $uid ) ) . "</video:content_loc>\n";
 				$xml .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
 				if ( $duration > 0 && $duration <= 28800 ) {
