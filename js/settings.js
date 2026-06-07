@@ -113,6 +113,7 @@
 		applyColor( preview, 'title_color', '--cvm-title-color' );
 		applyColor( preview, 'like_color', '--cvm-like-color' );
 		applyColor( preview, 'like_active_color', '--cvm-like-active' );
+		applyColor( preview, 'like_active_bg', '--cvm-like-active-bg' );
 		applyLikeBg( preview );
 		applyColor( preview, 'meta_color', '--cvm-meta-color' );
 		applySize( preview, 'title_size', '--cvm-title-size' );
@@ -137,9 +138,6 @@
 		if ( sepEl ) {
 			sepEl.style.display = ( showName && showDesc ) ? '' : 'none';
 		}
-
-		// A configured clicked color enables the hover + filled-when-liked styling.
-		preview.classList.toggle( 'coywolf-cvm-active-like', '' !== ( fieldValue( 'like_active_color' ) || '' ).trim() );
 
 		var scheme = currentScheme();
 		preview.className = preview.className.replace( /\s*coywolf-cvm-scheme-(off|auto|light|dark)/g, '' );
