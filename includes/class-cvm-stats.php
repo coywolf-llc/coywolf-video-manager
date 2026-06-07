@@ -100,10 +100,14 @@ class Coywolf_CVM_Stats {
 	public function get_counts( $uid ) {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT plays, likes FROM %i WHERE uid = %s', self::stats_table(), $uid ), ARRAY_A );
+		$row   = $wpdb->get_row( $wpdb->prepare( 'SELECT plays, likes FROM %i WHERE uid = %s', self::stats_table(), $uid ), ARRAY_A );
+		$plays = $row ? (int) $row['plays'] : 0;
+		$likes = $row ? (int) $row['likes'] : 0;
 		return array(
-			'plays' => $row ? (int) $row['plays'] : 0,
-			'likes' => $row ? (int) $row['likes'] : 0,
+			'plays' => $plays,
+			// Never display more likes than plays — looks like manipulation to
+			// search engines and guards against like-count inflation.
+			'likes' => min( $likes, $plays ),
 		);
 	}
 
@@ -126,9 +130,11 @@ class Coywolf_CVM_Stats {
 
 		$map = array();
 		foreach ( (array) $rows as $row ) {
+			$plays = (int) $row['plays'];
 			$map[ $row['uid'] ] = array(
-				'plays' => (int) $row['plays'],
-				'likes' => (int) $row['likes'],
+				'plays' => $plays,
+				// Cap likes at plays (see get_counts).
+				'likes' => min( (int) $row['likes'], $plays ),
 			);
 		}
 		return $map;
@@ -225,9 +231,13 @@ class Coywolf_CVM_Stats {
 		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE uid = %s', self::likes_table(), $uid ) );
 		$this->set_like_count( $uid, $count, $now );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$plays = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT plays FROM %i WHERE uid = %s', self::stats_table(), $uid ) );
+
 		return array(
 			'liked' => $liked,
-			'likes' => $count,
+			// Displayed count never exceeds plays (see get_counts).
+			'likes' => min( $count, $plays ),
 		);
 	}
 

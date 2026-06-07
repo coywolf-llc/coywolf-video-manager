@@ -572,7 +572,7 @@ class Coywolf_CVM_Block {
 			'@context'     => 'https://schema.org',
 			'@type'        => 'VideoObject',
 			'name'         => $name,
-			'description'  => $this->description( $name ),
+			'description'  => $this->description( $uid, $name ),
 			'thumbnailUrl' => array( $thumbnail ),
 			'uploadDate'   => get_the_date( 'c' ),
 			'embedUrl'     => $iframe_url,
@@ -669,6 +669,18 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
+	 * The per-video description set on the Edit Video page (used in schema and
+	 * the XML sitemap), or '' if none.
+	 *
+	 * @param string $uid Video UID.
+	 * @return string
+	 */
+	public static function video_description( $uid ) {
+		$all = get_option( 'coywolf_cvm_descriptions', array() );
+		return ( is_array( $all ) && isset( $all[ $uid ] ) ) ? (string) $all[ $uid ] : '';
+	}
+
+	/**
 	 * Resolve the poster URL: a per-block image, a per-block timestamp, the
 	 * per-video default (image or timestamp), or a large (>=1200px) thumbnail.
 	 *
@@ -703,12 +715,18 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * A schema description, falling back to the video name.
+	 * A schema description: the per-video description (Edit Video page), else the
+	 * post excerpt, else the video name.
 	 *
+	 * @param string $uid  Video UID.
 	 * @param string $name Video name.
 	 * @return string
 	 */
-	private function description( $name ) {
+	private function description( $uid, $name ) {
+		$stored = self::video_description( $uid );
+		if ( '' !== $stored ) {
+			return $stored;
+		}
 		$excerpt = has_excerpt() ? get_the_excerpt() : '';
 		$excerpt = trim( wp_strip_all_tags( $excerpt ) );
 		return '' !== $excerpt ? $excerpt : $name;

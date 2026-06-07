@@ -2,10 +2,10 @@
 /**
  * Video XML sitemap.
  *
- * Serves /video-sitemap.xml listing every published post/page that embeds a
- * video, with a <video:video> entry per video. The rewrite rule is registered
- * unconditionally on init (so it survives); output is gated on the setting, and
- * rewrites are flushed only on activation and when the setting changes.
+ * Serves /coywolf-video-sitemap.xml listing every published post/page that
+ * embeds a video, with a <video:video> entry per video. Served on parse_request
+ * by raw path so it runs before Yoast SEO's sitemap handler (which would
+ * otherwise capture a "*-sitemap.xml" URL); output is gated on the setting.
  *
  * @package CoywolfVideoManager
  */
@@ -18,6 +18,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The video sitemap.
  */
 class Coywolf_CVM_Sitemap {
+
+	/**
+	 * The sitemap path (relative to the site root). Deliberately NOT
+	 * "*-sitemap.xml", which Yoast SEO's rewrite rules capture.
+	 */
+	const SLUG = 'coywolf-video-sitemap.xml';
 
 	/**
 	 * Cloudflare client.
@@ -54,9 +60,10 @@ class Coywolf_CVM_Sitemap {
 
 		add_action( 'init', array( __CLASS__, 'register_rewrite' ) );
 		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
-		// Priority 0 so we serve before redirect_canonical (priority 10) can
-		// 301 the .xml URL away; the filter is a belt-and-suspenders backup.
-		add_action( 'template_redirect', array( $this, 'serve' ), 0 );
+		// Serve on parse_request (by raw path) so we run before Yoast SEO's
+		// sitemap handler (pre_get_posts) and before redirect_canonical, and
+		// don't depend on which plugin's rewrite rule "won".
+		add_action( 'parse_request', array( $this, 'maybe_serve' ) );
 		add_filter( 'redirect_canonical', array( $this, 'block_canonical' ) );
 		add_action( 'update_option_coywolf_cvm_settings', array( $this, 'on_settings_changed' ), 10, 2 );
 	}
@@ -68,7 +75,7 @@ class Coywolf_CVM_Sitemap {
 	 * @return string|false
 	 */
 	public function block_canonical( $redirect ) {
-		if ( get_query_var( 'coywolf_cvm_sitemap' ) ) {
+		if ( get_query_var( 'coywolf_cvm_sitemap' ) || $this->is_sitemap_request() ) {
 			return false;
 		}
 		return $redirect;
@@ -78,7 +85,7 @@ class Coywolf_CVM_Sitemap {
 	 * Register the rewrite rule. Called on init and on activation.
 	 */
 	public static function register_rewrite() {
-		add_rewrite_rule( '^video-sitemap\.xml$', 'index.php?coywolf_cvm_sitemap=1', 'top' );
+		add_rewrite_rule( '^' . preg_quote( self::SLUG ) . '$', 'index.php?coywolf_cvm_sitemap=1', 'top' );
 	}
 
 	/**
@@ -108,18 +115,28 @@ class Coywolf_CVM_Sitemap {
 	}
 
 	/**
-	 * Serve the sitemap when requested and enabled.
+	 * Whether the current request is for our sitemap path. Matches the raw
+	 * request URI so it works no matter which plugin's rewrite rule matched.
+	 *
+	 * @return bool
 	 */
-	public function serve() {
-		$requested = get_query_var( 'coywolf_cvm_sitemap' );
-		if ( ! $requested && isset( $_GET['coywolf_cvm_sitemap'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			$requested = '1';
-		}
-		if ( ! $requested ) {
+	private function is_sitemap_request() {
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+		$path = sanitize_text_field( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
+		return self::SLUG === basename( $path );
+	}
+
+	/**
+	 * Serve the sitemap when requested (by query var or raw path) and enabled.
+	 *
+	 * @param WP $wp Current WordPress environment (from parse_request).
+	 */
+	public function maybe_serve( $wp = null ) {
+		if ( ! $this->settings->get( 'sitemap_enabled' ) ) {
 			return;
 		}
-		if ( ! $this->settings->get( 'sitemap_enabled' ) ) {
-			// Let WordPress serve a normal 404 for the URL.
+		$by_var = is_object( $wp ) && ! empty( $wp->query_vars['coywolf_cvm_sitemap'] );
+		if ( ! $by_var && ! $this->is_sitemap_request() ) {
 			return;
 		}
 
@@ -154,11 +171,13 @@ class Coywolf_CVM_Sitemap {
 			$xml .= "\t\t<loc>" . esc_url( $permalink ) . "</loc>\n";
 
 			foreach ( array_unique( $uids ) as $uid ) {
-				$counts = $stats->get_counts( $uid );
-				$xml   .= "\t\t<video:video>\n";
-				$xml   .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
-				$xml   .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
-				$xml   .= "\t\t\t<video:description>" . esc_xml( $description ) . "</video:description>\n";
+				$counts   = $stats->get_counts( $uid );
+				$vid_desc = Coywolf_CVM_Block::video_description( $uid );
+				$desc     = '' !== $vid_desc ? $vid_desc : $description;
+				$xml     .= "\t\t<video:video>\n";
+				$xml     .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
+				$xml     .= "\t\t\t<video:title>" . esc_xml( $title ) . "</video:title>\n";
+				$xml     .= "\t\t\t<video:description>" . esc_xml( $desc ) . "</video:description>\n";
 				$xml   .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
 				if ( $counts['plays'] > 0 ) {
 					$xml .= "\t\t\t<video:view_count>" . (int) $counts['plays'] . "</video:view_count>\n";

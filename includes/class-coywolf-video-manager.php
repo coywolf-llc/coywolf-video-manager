@@ -180,10 +180,12 @@ final class Coywolf_Video_Manager {
 		$this->index->remove_video( $uid );
 		$this->stats->delete_uid( $uid );
 
-		$posters = get_option( 'coywolf_cvm_posters', array() );
-		if ( is_array( $posters ) && isset( $posters[ $uid ] ) ) {
-			unset( $posters[ $uid ] );
-			update_option( 'coywolf_cvm_posters', $posters, false );
+		foreach ( array( 'coywolf_cvm_posters', 'coywolf_cvm_descriptions' ) as $store ) {
+			$all = get_option( $store, array() );
+			if ( is_array( $all ) && isset( $all[ $uid ] ) ) {
+				unset( $all[ $uid ] );
+				update_option( $store, $all, false );
+			}
 		}
 		delete_transient( 'coywolf_cvm_meta_' . md5( $uid ) );
 	}

@@ -110,6 +110,7 @@
 			var mode = posterMode();
 			var data = {
 				name: document.getElementById( 'cvm-name' ).value,
+				description: document.getElementById( 'cvm-description' ).value,
 				creator: document.getElementById( 'cvm-creator' ).value,
 				allowedOrigins: origins,
 				posterMode: mode

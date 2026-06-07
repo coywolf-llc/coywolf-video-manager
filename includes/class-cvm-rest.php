@@ -281,6 +281,11 @@ class Coywolf_CVM_REST {
 		// Store the per-video default poster (timestamp or Media Library image).
 		$this->save_poster( (string) $request['uid'], $params );
 
+		// Store the per-video description (used in schema + the XML sitemap).
+		if ( isset( $params['description'] ) ) {
+			$this->save_description( (string) $request['uid'], (string) $params['description'] );
+		}
+
 		if ( empty( $fields ) ) {
 			return rest_ensure_response( array( 'ok' => true ) );
 		}
@@ -317,6 +322,26 @@ class Coywolf_CVM_REST {
 		}
 		$all[ $uid ] = $entry;
 		update_option( 'coywolf_cvm_posters', $all, false );
+	}
+
+	/**
+	 * Persist the per-video description from the Edit Video form.
+	 *
+	 * @param string $uid  Video UID.
+	 * @param string $text Description text.
+	 */
+	private function save_description( $uid, $text ) {
+		$text = sanitize_textarea_field( $text );
+		$all  = get_option( 'coywolf_cvm_descriptions', array() );
+		if ( ! is_array( $all ) ) {
+			$all = array();
+		}
+		if ( '' === $text ) {
+			unset( $all[ $uid ] );
+		} else {
+			$all[ $uid ] = $text;
+		}
+		update_option( 'coywolf_cvm_descriptions', $all, false );
 	}
 
 	/**

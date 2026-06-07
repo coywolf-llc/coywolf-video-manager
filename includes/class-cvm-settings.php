@@ -633,10 +633,11 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_advanced_field() {
 		$this->checkbox( 'sitemap_enabled', __( 'Serve a video XML sitemap', 'coywolf-video-manager' ) );
+		$sitemap_url = home_url( '/' . Coywolf_CVM_Sitemap::SLUG );
 		echo '<p class="description">' . sprintf(
 			/* translators: %s: sitemap URL. */
 			esc_html__( 'Served at %s', 'coywolf-video-manager' ),
-			'<a href="' . esc_url( home_url( '/video-sitemap.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html( home_url( '/video-sitemap.xml' ) ) . '</a>'
+			'<a href="' . esc_url( $sitemap_url ) . '" target="_blank" rel="noopener">' . esc_html( $sitemap_url ) . '</a>'
 		) . '</p>';
 	}
 
