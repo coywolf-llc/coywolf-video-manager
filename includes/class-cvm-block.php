@@ -183,9 +183,10 @@ class Coywolf_CVM_Block {
 		// Colors: only when changed from the default, so a chosen color scheme
 		// isn't clobbered by emitting the default values.
 		$colors = array(
-			'title_color' => '--cvm-title-color',
-			'like_color'  => '--cvm-like-color',
-			'meta_color'  => '--cvm-meta-color',
+			'title_color'       => '--cvm-title-color',
+			'like_color'        => '--cvm-like-color',
+			'like_active_color' => '--cvm-like-active',
+			'meta_color'        => '--cvm-meta-color',
 		);
 		foreach ( $colors as $key => $var ) {
 			$value = (string) $this->settings->get( $key );
@@ -337,6 +338,10 @@ class Coywolf_CVM_Block {
 		$scheme  = (string) $this->settings->get( 'color_scheme' );
 		if ( in_array( $scheme, array( 'auto', 'light', 'dark' ), true ) ) {
 			$classes .= ' coywolf-cvm-scheme-' . $scheme;
+		}
+		// A configured "clicked" color enables the hover + filled-when-liked styling.
+		if ( '' !== (string) $this->settings->get( 'like_active_color' ) ) {
+			$classes .= ' coywolf-cvm-active-like';
 		}
 
 		$attrs = array(
