@@ -116,6 +116,12 @@ class Coywolf_CVM_Block {
 		wp_register_script( 'coywolf-cvm-view', COYWOLF_CVM_URL . 'js/view.js', array(), Coywolf_Video_Manager::VERSION, true );
 		wp_register_style( 'coywolf-cvm-view', COYWOLF_CVM_URL . 'css/view.css', array(), Coywolf_Video_Manager::VERSION );
 
+		// Appearance overrides from Settings, as CSS custom properties.
+		$custom_css = $this->custom_css();
+		if ( '' !== $custom_css ) {
+			wp_add_inline_style( 'coywolf-cvm-view', $custom_css );
+		}
+
 		// Bundled open-source players (enqueued only when the block uses them).
 		wp_register_script( 'coywolf-cvm-hls', COYWOLF_CVM_URL . 'vendor/hls/hls.min.js', array(), '1.5.17', true );
 		wp_register_script( 'coywolf-cvm-plyr', COYWOLF_CVM_URL . 'vendor/plyr/plyr.min.js', array(), '3.7.8', true );
@@ -160,6 +166,49 @@ class Coywolf_CVM_Block {
 			'nonce'    => wp_create_nonce( 'wp_rest' ),
 			'defaults' => $this->settings->all(),
 		);
+	}
+
+	/**
+	 * Build the appearance CSS custom properties from Settings. Values are
+	 * already sanitized (hex colors, enum weight/align, integer sizes), so they
+	 * are safe to inline; only set vars are emitted so view.css fallbacks apply
+	 * otherwise.
+	 *
+	 * @return string
+	 */
+	private function custom_css() {
+		$map  = array(
+			'title_color'  => '--cvm-title-color',
+			'title_weight' => '--cvm-title-weight',
+			'title_align'  => '--cvm-title-align',
+			'like_color'   => '--cvm-like-color',
+			'like_bg'      => '--cvm-like-bg',
+			'meta_color'   => '--cvm-meta-color',
+		);
+		$vars = array();
+		foreach ( $map as $key => $var ) {
+			$value = (string) $this->settings->get( $key );
+			if ( '' !== $value ) {
+				$vars[ $var ] = $value;
+			}
+		}
+		$title_size = (int) $this->settings->get( 'title_size' );
+		if ( $title_size > 0 ) {
+			$vars['--cvm-title-size'] = $title_size . 'px';
+		}
+		$meta_size = (int) $this->settings->get( 'meta_size' );
+		if ( $meta_size > 0 ) {
+			$vars['--cvm-meta-size'] = $meta_size . 'px';
+		}
+
+		if ( empty( $vars ) ) {
+			return '';
+		}
+		$css = '.coywolf-cvm{';
+		foreach ( $vars as $name => $value ) {
+			$css .= $name . ':' . $value . ';';
+		}
+		return $css . '}';
 	}
 
 	/* --------------------------------------------------------------------- *
@@ -438,8 +487,9 @@ class Coywolf_CVM_Block {
 			? '<span class="' . esc_attr( $count_class ) . '">' . esc_html( $likes > 0 ? number_format_i18n( $likes ) : '' ) . '</span>'
 			: '';
 
+		// Outline thumbs-up (stroke); CSS fills it when the button is liked.
 		return sprintf(
-			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span><svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>%3$s</button>',
+			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span><svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>%3$s</button>',
 			esc_attr( $uid ),
 			esc_html__( 'Like this video', 'coywolf-video-manager' ),
 			$count_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.

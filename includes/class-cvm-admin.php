@@ -163,6 +163,16 @@ class Coywolf_CVM_Admin {
 			) . ';',
 			'before'
 		);
+
+		// The Settings screen uses the WordPress color picker (hex-capable).
+		if ( isset( $this->hooks['settings'] ) && $hook === $this->hooks['settings'] ) {
+			wp_enqueue_style( 'wp-color-picker' );
+			wp_enqueue_script( 'wp-color-picker' );
+			wp_add_inline_script(
+				'wp-color-picker',
+				'jQuery(function($){$(".coywolf-cvm-color").wpColorPicker();});'
+			);
+		}
 	}
 
 	/**
