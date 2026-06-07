@@ -157,6 +157,20 @@ class Coywolf_CVM_Sitemap {
 		$stats     = Coywolf_Video_Manager::instance()->stats();
 		$durations = $this->duration_map();
 
+		// Batch the per-video data up front so the loop issues no per-video
+		// queries: one stats query for all UIDs, and one read of the descriptions.
+		$all_uids = array();
+		foreach ( $entries as $entry_uids ) {
+			foreach ( (array) $entry_uids as $entry_uid ) {
+				$all_uids[ $entry_uid ] = true;
+			}
+		}
+		$counts_map   = $stats->get_counts_map( array_keys( $all_uids ) );
+		$descriptions = get_option( 'coywolf_cvm_descriptions', array() );
+		if ( ! is_array( $descriptions ) ) {
+			$descriptions = array();
+		}
+
 		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">' . "\n";
 
@@ -174,8 +188,8 @@ class Coywolf_CVM_Sitemap {
 			$xml .= "\t\t<loc>" . esc_url( $permalink ) . "</loc>\n";
 
 			foreach ( array_unique( $uids ) as $uid ) {
-				$counts   = $stats->get_counts( $uid );
-				$vid_desc = Coywolf_CVM_Block::video_description( $uid );
+				$counts   = isset( $counts_map[ $uid ] ) ? $counts_map[ $uid ] : array( 'plays' => 0, 'likes' => 0 );
+				$vid_desc = isset( $descriptions[ $uid ] ) ? (string) $descriptions[ $uid ] : '';
 				$desc     = '' !== $vid_desc ? $vid_desc : $description;
 				$duration = isset( $durations[ $uid ] ) ? (int) $durations[ $uid ] : 0;
 
