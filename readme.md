@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.16
+- **Version:** 1.0.17
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -107,6 +107,9 @@ Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name/description figcap
 4. Settings.
 
 ## Changelog
+
+### 1.0.17
+- Remove Plyr and Video.js players; Cloudflare Stream player only (#18).
 
 ### 1.0.16
 - Like button: unclicked + clicked color & background, with hover previewing the other state (#17).
