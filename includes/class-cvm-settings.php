@@ -42,6 +42,13 @@ class Coywolf_CVM_Settings {
 	private $cloudflare;
 
 	/**
+	 * Per-request cache of the merged settings (stored values over defaults).
+	 *
+	 * @var array|null
+	 */
+	private $cache = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Coywolf_CVM_Cloudflare $cloudflare API client.
@@ -52,10 +59,21 @@ class Coywolf_CVM_Settings {
 		add_action( 'admin_init', array( $this, 'register' ) );
 		add_action( 'admin_post_coywolf_cvm_test_connection', array( $this, 'handle_test_connection' ) );
 
+		// Drop the per-request settings cache when the option changes.
+		add_action( 'update_option_' . self::OPTION, array( $this, 'flush_cache' ) );
+		add_action( 'add_option_' . self::OPTION, array( $this, 'flush_cache' ) );
+
 		foreach ( array( 'coywolf_cvm_account_id', 'coywolf_cvm_api_token' ) as $option ) {
 			add_action( 'update_option_' . $option, array( $this, 'on_credentials_changed' ) );
 			add_action( 'add_option_' . $option, array( $this, 'on_credentials_changed' ) );
 		}
+	}
+
+	/**
+	 * Reset the per-request settings cache.
+	 */
+	public function flush_cache() {
+		$this->cache = null;
 	}
 
 	/* --------------------------------------------------------------------- *
@@ -145,11 +163,15 @@ class Coywolf_CVM_Settings {
 	 * @return array
 	 */
 	public function all() {
+		if ( null !== $this->cache ) {
+			return $this->cache;
+		}
 		$stored = get_option( self::OPTION, array() );
 		if ( ! is_array( $stored ) ) {
 			$stored = array();
 		}
-		return wp_parse_args( $stored, self::defaults() );
+		$this->cache = wp_parse_args( $stored, self::defaults() );
+		return $this->cache;
 	}
 
 	/**

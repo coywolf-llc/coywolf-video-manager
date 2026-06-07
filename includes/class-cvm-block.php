@@ -556,7 +556,9 @@ class Coywolf_CVM_Block {
 			$schema['interactionStatistic'] = $interaction;
 		}
 
-		return '<script type="application/ld+json">' . wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>';
+		// JSON_HEX_TAG escapes < and > so a "</script>" in any value (e.g. a video
+		// name pulled from Cloudflare) can't break out of the JSON-LD script tag.
+		return '<script type="application/ld+json">' . wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG ) . '</script>';
 	}
 
 	/* --------------------------------------------------------------------- *

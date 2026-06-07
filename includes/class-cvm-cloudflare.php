@@ -24,12 +24,16 @@ class Coywolf_CVM_Cloudflare {
 	const API_BASE = 'https://api.cloudflare.com/client/v4';
 
 	/**
-	 * GraphQL analytics endpoint.
-	 */
-	/**
 	 * How long the video list is cached, in seconds.
 	 */
 	const LIST_TTL = 300;
+
+	/**
+	 * Per-request cache of the resolved playback customer code.
+	 *
+	 * @var string|null
+	 */
+	private $customer_code_cache = null;
 
 	/* --------------------------------------------------------------------- *
 	 * Credentials
@@ -428,17 +432,19 @@ class Coywolf_CVM_Cloudflare {
 	 * @return string
 	 */
 	public function customer_code() {
-		$code = (string) get_option( 'coywolf_cvm_customer_code', '' );
-		if ( '' !== $code ) {
-			return $code;
+		if ( null !== $this->customer_code_cache ) {
+			return $this->customer_code_cache;
 		}
-		if ( $this->is_configured() ) {
+		$code = (string) get_option( 'coywolf_cvm_customer_code', '' );
+		if ( '' === $code && $this->is_configured() ) {
 			$list = $this->list_videos( array( 'limit' => 50 ) );
 			if ( ! is_wp_error( $list ) ) {
 				$this->learn_customer_code( $list );
 			}
+			$code = (string) get_option( 'coywolf_cvm_customer_code', '' );
 		}
-		return (string) get_option( 'coywolf_cvm_customer_code', '' );
+		$this->customer_code_cache = $code;
+		return $code;
 	}
 
 	/**
