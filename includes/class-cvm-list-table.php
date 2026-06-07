@@ -135,7 +135,6 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $current, $value, false ), esc_html( $label ) );
 		}
 		echo '</select>';
-		submit_button( __( 'Filter', 'coywolf-video-manager' ), '', 'cvm-filter-apply', false );
 		echo '</div>';
 	}
 

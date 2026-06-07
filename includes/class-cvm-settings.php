@@ -202,9 +202,11 @@ class Coywolf_CVM_Settings {
 			);
 		}
 
-		add_settings_section( 'coywolf_cvm_credentials', __( 'Cloudflare account', 'coywolf-video-manager' ), array( $this, 'render_credentials_intro' ), self::PAGE );
+		add_settings_section( 'coywolf_cvm_credentials', __( 'Cloudflare account', 'coywolf-video-manager' ), '__return_false', self::PAGE );
+		add_settings_field( 'coywolf_cvm_setup', __( 'Getting started', 'coywolf-video-manager' ), array( $this, 'render_credentials_intro' ), self::PAGE, 'coywolf_cvm_credentials' );
 		add_settings_field( 'coywolf_cvm_account_id', __( 'Account ID', 'coywolf-video-manager' ), array( $this, 'render_account_field' ), self::PAGE, 'coywolf_cvm_credentials' );
 		add_settings_field( 'coywolf_cvm_api_token', __( 'API token', 'coywolf-video-manager' ), array( $this, 'render_token_field' ), self::PAGE, 'coywolf_cvm_credentials' );
+		add_settings_field( 'coywolf_cvm_connection', __( 'Connection', 'coywolf-video-manager' ), array( $this, 'render_connection_field' ), self::PAGE, 'coywolf_cvm_credentials' );
 
 		if ( ! $this->cloudflare->is_configured() ) {
 			return;
@@ -363,18 +365,18 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_credentials_intro() {
 		echo '<p>' . esc_html__( 'Connect your Cloudflare account to manage and embed Stream videos. Nothing else unlocks until the connection succeeds.', 'coywolf-video-manager' ) . '</p>';
-		echo '<ol>';
+		echo '<ol style="margin:0;">';
 		echo '<li>' . wp_kses_post( __( '<strong>Account ID</strong> — find it in the right sidebar of the <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a>, or in the Stream section.', 'coywolf-video-manager' ) ) . '</li>';
 		echo '<li>' . wp_kses_post( __( '<strong>API token</strong> — at <em>My Profile → API Tokens → Create Token → Custom token</em>, grant <code>Account · Stream · Edit</code> (and optionally <code>Account · Account Analytics · Read</code> for watch-time).', 'coywolf-video-manager' ) ) . '</li>';
 		echo '</ol>';
-		$this->render_connection_status();
 	}
 
 	/**
-	 * Show the current connection status and the Test connection button.
+	 * Connection status + Test connection button (in the field column).
 	 */
-	private function render_connection_status() {
+	public function render_connection_field() {
 		if ( ! $this->cloudflare->is_configured() ) {
+			echo '<p class="description">' . esc_html__( 'Enter and save your Account ID and API token to test the connection.', 'coywolf-video-manager' ) . '</p>';
 			return;
 		}
 		$status = get_transient( 'coywolf_cvm_conn_status' );
