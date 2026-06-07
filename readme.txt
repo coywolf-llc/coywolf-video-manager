@@ -21,11 +21,9 @@ Features:
 * Likes, views & upload date — a YouTube-style row under each video. Cloudflare's API does not expose likes or views, so the plugin records them locally in WordPress.
 * Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, duration, upload date, and optional view/like interaction counts.
 * All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
-* Edit Video screen — rename, set the creator, manage allowed origins, control signed-URL protection, pick the poster timestamp with a live preview, and add or AI-generate captions.
-* Upload to Cloudflare — upload videos straight from WordPress (resumable for large files), with the same options as the Edit screen.
-* Signed URLs — play private (signed-URL) videos by minting short-lived tokens server-side.
-* Watch-time analytics — an optional column of real minutes-viewed pulled from Cloudflare's analytics.
-* Video XML sitemap — optionally serve /video-sitemap.xml listing every page and post that embeds a video.
+* Edit Video screen — rename, set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image), copy the video ID, and add or AI-generate captions.
+* Upload to Cloudflare — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.
+* Video XML sitemap — optionally serve /video-sitemap.xml listing every page and post that embeds a video. Deleting a video also removes its block from any post or page that used it.
 
 <!-- wporg-strip:start -->
 * GitHub self-updater — updates delivered straight from the project's GitHub releases.

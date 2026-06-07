@@ -257,6 +257,19 @@ class Coywolf_CVM_Stats {
 		}
 	}
 
+	/**
+	 * Delete all stored stats + likes for a (deleted) video.
+	 *
+	 * @param string $uid Video UID.
+	 */
+	public function delete_uid( $uid ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->delete( self::stats_table(), array( 'uid' => $uid ), array( '%s' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->delete( self::likes_table(), array( 'uid' => $uid ), array( '%s' ) );
+	}
+
 	/* --------------------------------------------------------------------- *
 	 * Visitor identity
 	 * --------------------------------------------------------------------- */

@@ -256,12 +256,11 @@ class Coywolf_CVM_Block {
 		$primary  = isset( $attributes['primaryColor'] ) ? (string) $attributes['primaryColor'] : '';
 
 		// Aspect ratio (height/width) and upload date come from the block, with a
-		// cached API lookup as a fallback for older blocks or when signing.
-		$aspect     = isset( $attributes['aspectRatio'] ) ? (float) $attributes['aspectRatio'] : 0;
-		$uploaded   = isset( $attributes['uploaded'] ) ? (string) $attributes['uploaded'] : '';
-		$signing_on = $this->settings->get( 'signed_urls_enabled' ) && $this->cloudflare->has_signing_key();
+		// cached API lookup as a fallback for older blocks.
+		$aspect   = isset( $attributes['aspectRatio'] ) ? (float) $attributes['aspectRatio'] : 0;
+		$uploaded = isset( $attributes['uploaded'] ) ? (string) $attributes['uploaded'] : '';
 
-		if ( $aspect <= 0 || '' === $uploaded || $signing_on ) {
+		if ( $aspect <= 0 || '' === $uploaded ) {
 			$meta = $this->video_meta( $uid );
 			if ( $aspect <= 0 && $meta['width'] > 0 && $meta['height'] > 0 ) {
 				$aspect = $meta['height'] / $meta['width'];
@@ -269,17 +268,14 @@ class Coywolf_CVM_Block {
 			if ( '' === $uploaded && '' !== $meta['created'] ) {
 				$uploaded = $meta['created'];
 			}
-			$signed_required = $signing_on && $meta['signed'];
-		} else {
-			$signed_required = false;
 		}
 		if ( $aspect <= 0 ) {
 			$aspect = 0.5625; // 16:9 fallback.
 		}
 		$pct = round( $aspect * 100, 4 );
 
-		$playback_id = $this->playback_id( $uid, $signed_required );
-		$poster      = $this->poster_url( $attributes, $playback_id );
+		$playback_id = $uid;
+		$poster      = $this->poster_url( $attributes, $playback_id, $uid );
 
 		// Cloudflare iframe params.
 		$params = array( 'preload' => $cfg['preload'] );
@@ -531,7 +527,7 @@ class Coywolf_CVM_Block {
 	 * @return string
 	 */
 	public static function thumb_svg() {
-		return '<svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>';
+		return '<svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg>';
 	}
 
 	/**
@@ -610,26 +606,11 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
-	 * Resolve the playback id — UID, or a signed token for private videos.
-	 *
-	 * @param string $uid    Video UID.
-	 * @param bool   $signed Whether this video requires a signed URL.
-	 * @return string
-	 */
-	private function playback_id( $uid, $signed ) {
-		if ( ! $signed ) {
-			return $uid;
-		}
-		$token = $this->cloudflare->sign_token( $uid );
-		return is_wp_error( $token ) ? $uid : $token;
-	}
-
-	/**
-	 * Cached per-video metadata (dimensions, created date, signed flag) to avoid
-	 * an API call on every render.
+	 * Cached per-video metadata (dimensions, created date) to avoid an API call
+	 * on every render.
 	 *
 	 * @param string $uid Video UID.
-	 * @return array { width, height, created, signed }.
+	 * @return array { width, height, created }.
 	 */
 	private function video_meta( $uid ) {
 		$cache  = 'coywolf_cvm_meta_' . md5( $uid );
@@ -641,40 +622,60 @@ class Coywolf_CVM_Block {
 			'width'   => 0,
 			'height'  => 0,
 			'created' => '',
-			'signed'  => false,
 		);
 		$video = $this->cloudflare->get_video( $uid );
 		if ( ! is_wp_error( $video ) ) {
 			$meta['width']   = isset( $video['input']['width'] ) ? (int) $video['input']['width'] : 0;
 			$meta['height']  = isset( $video['input']['height'] ) ? (int) $video['input']['height'] : 0;
 			$meta['created'] = isset( $video['created'] ) ? (string) $video['created'] : '';
-			$meta['signed']  = ! empty( $video['requireSignedURLs'] );
 		}
 		set_transient( $cache, $meta, HOUR_IN_SECONDS );
 		return $meta;
 	}
 
 	/**
-	 * Resolve the poster URL — a custom image, or a large (>=1200px) Cloudflare
-	 * thumbnail at the chosen timestamp.
+	 * The per-video default poster set on the Edit Video page, or null.
+	 *
+	 * @param string $uid Video UID.
+	 * @return array|null { mode, time, image_id, image_url }.
+	 */
+	public static function video_poster( $uid ) {
+		$all = get_option( 'coywolf_cvm_posters', array() );
+		return ( is_array( $all ) && isset( $all[ $uid ] ) && is_array( $all[ $uid ] ) ) ? $all[ $uid ] : null;
+	}
+
+	/**
+	 * Resolve the poster URL: a per-block image, a per-block timestamp, the
+	 * per-video default (image or timestamp), or a large (>=1200px) thumbnail.
 	 *
 	 * @param array  $attributes  Block attributes.
 	 * @param string $playback_id Playback id.
+	 * @param string $uid         Video UID.
 	 * @return string
 	 */
-	private function poster_url( $attributes, $playback_id ) {
+	private function poster_url( $attributes, $playback_id, $uid ) {
 		$mode = isset( $attributes['posterMode'] ) ? $attributes['posterMode'] : 'timestamp';
 		if ( 'media' === $mode && ! empty( $attributes['posterUrl'] ) ) {
 			return esc_url_raw( $attributes['posterUrl'] );
 		}
-		$time = isset( $attributes['posterTime'] ) ? max( 0, (float) $attributes['posterTime'] ) : 0;
-		return $this->cloudflare->thumbnail_url(
-			$playback_id,
-			array(
-				'time'  => $time . 's',
-				'width' => self::POSTER_WIDTH,
-			)
-		);
+		$btime = isset( $attributes['posterTime'] ) ? max( 0, (float) $attributes['posterTime'] ) : 0;
+		if ( $btime > 0 ) {
+			return $this->cloudflare->thumbnail_url( $playback_id, array( 'time' => $btime . 's', 'width' => self::POSTER_WIDTH ) );
+		}
+
+		$video_poster = self::video_poster( $uid );
+		if ( $video_poster ) {
+			$vp_mode = isset( $video_poster['mode'] ) ? $video_poster['mode'] : '';
+			if ( 'image' === $vp_mode && ! empty( $video_poster['image_url'] ) ) {
+				return esc_url_raw( $video_poster['image_url'] );
+			}
+			if ( 'timestamp' === $vp_mode ) {
+				$t = isset( $video_poster['time'] ) ? max( 0, (float) $video_poster['time'] ) : 0;
+				return $this->cloudflare->thumbnail_url( $playback_id, array( 'time' => $t . 's', 'width' => self::POSTER_WIDTH ) );
+			}
+		}
+
+		return $this->cloudflare->thumbnail_url( $playback_id, array( 'time' => '0s', 'width' => self::POSTER_WIDTH ) );
 	}
 
 	/**

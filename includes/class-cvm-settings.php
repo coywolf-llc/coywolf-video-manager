@@ -51,7 +51,6 @@ class Coywolf_CVM_Settings {
 
 		add_action( 'admin_init', array( $this, 'register' ) );
 		add_action( 'admin_post_coywolf_cvm_test_connection', array( $this, 'handle_test_connection' ) );
-		add_action( 'admin_post_coywolf_cvm_create_key', array( $this, 'handle_create_key' ) );
 
 		foreach ( array( 'coywolf_cvm_account_id', 'coywolf_cvm_api_token' ) as $option ) {
 			add_action( 'update_option_' . $option, array( $this, 'on_credentials_changed' ) );
@@ -82,8 +81,6 @@ class Coywolf_CVM_Settings {
 			'likes_enabled'       => true,
 			'likes_show_count'    => true,
 			'sitemap_enabled'     => false,
-			'analytics_enabled'   => false,
-			'signed_urls_enabled' => false,
 			// Appearance.
 			'color_scheme'        => 'off',
 			'title_color'         => '',
@@ -231,14 +228,15 @@ class Coywolf_CVM_Settings {
 		add_settings_section( 'coywolf_cvm_engagement', __( 'Views & likes', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'engagement', __( 'Engagement', 'coywolf-video-manager' ), array( $this, 'render_engagement_field' ), self::PAGE, 'coywolf_cvm_engagement' );
 
-		add_settings_section( 'coywolf_cvm_appearance', __( 'Appearance', 'coywolf-video-manager' ), array( $this, 'render_appearance_intro' ), self::PAGE );
+		add_settings_section( 'coywolf_cvm_appearance', __( 'Appearance', 'coywolf-video-manager' ), '__return_false', self::PAGE );
+		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Video name', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 
-		add_settings_section( 'coywolf_cvm_advanced', __( 'Sitemap, analytics & private videos', 'coywolf-video-manager' ), '__return_false', self::PAGE );
-		add_settings_field( 'advanced', __( 'Advanced', 'coywolf-video-manager' ), array( $this, 'render_advanced_field' ), self::PAGE, 'coywolf_cvm_advanced' );
+		add_settings_section( 'coywolf_cvm_advanced', __( 'Sitemap', 'coywolf-video-manager' ), '__return_false', self::PAGE );
+		add_settings_field( 'advanced', __( 'Video sitemap', 'coywolf-video-manager' ), array( $this, 'render_advanced_field' ), self::PAGE, 'coywolf_cvm_advanced' );
 	}
 
 	/* --------------------------------------------------------------------- *
@@ -286,7 +284,7 @@ class Coywolf_CVM_Settings {
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
 
-		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled', 'analytics_enabled', 'signed_urls_enabled' ) as $flag ) {
+		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
@@ -481,10 +479,11 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Appearance section intro + live preview.
+	 * Appearance description + live preview (rendered in the field column so it
+	 * aligns with the other settings).
 	 */
-	public function render_appearance_intro() {
-		echo '<p>' . esc_html__( 'Style the video name, like button, and views/date shown beneath each video. Leave a color empty to inherit your theme; changes preview live below.', 'coywolf-video-manager' ) . '</p>';
+	public function render_appearance_preview_field() {
+		echo '<p class="description">' . esc_html__( 'Style the video name, like button, and views/date shown beneath each video. Leave a color empty to inherit your theme; changes preview live here.', 'coywolf-video-manager' ) . '</p>';
 
 		$scheme       = (string) $this->get( 'color_scheme' );
 		$scheme_class = ( 'off' !== $scheme ) ? ' coywolf-cvm-scheme-' . sanitize_html_class( $scheme ) : '';
@@ -597,7 +596,7 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Sitemap / analytics / signed-URL controls.
+	 * Video sitemap control.
 	 */
 	public function render_advanced_field() {
 		$this->checkbox( 'sitemap_enabled', __( 'Serve a video XML sitemap', 'coywolf-video-manager' ) );
@@ -606,27 +605,6 @@ class Coywolf_CVM_Settings {
 			esc_html__( 'Served at %s', 'coywolf-video-manager' ),
 			'<a href="' . esc_url( home_url( '/video-sitemap.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html( home_url( '/video-sitemap.xml' ) ) . '</a>'
 		) . '</p>';
-
-		$this->checkbox( 'analytics_enabled', __( 'Show a Cloudflare watch-time (minutes) column on All Videos', 'coywolf-video-manager' ) );
-		echo '<p class="description">' . esc_html__( 'Requires the Account Analytics · Read permission on your API token.', 'coywolf-video-manager' ) . '</p>';
-
-		$this->checkbox( 'signed_urls_enabled', __( 'Support private (signed-URL) videos in the block', 'coywolf-video-manager' ) );
-		$this->render_signing_key_status();
-	}
-
-	/**
-	 * Signing-key status + create button.
-	 */
-	private function render_signing_key_status() {
-		if ( ! $this->get( 'signed_urls_enabled' ) ) {
-			return;
-		}
-		if ( $this->cloudflare->has_signing_key() ) {
-			echo '<p class="description" style="color:#1a7f37;">' . esc_html__( '✓ A Stream signing key is stored. Private videos will play via short-lived tokens.', 'coywolf-video-manager' ) . '</p>';
-			return;
-		}
-		echo '<p class="description">' . esc_html__( 'No signing key yet — create one so private videos can play.', 'coywolf-video-manager' ) . '</p>';
-		echo '<p><a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=coywolf_cvm_create_key' ), 'coywolf_cvm_create_key' ) ) . '">' . esc_html__( 'Create signing key', 'coywolf-video-manager' ) . '</a></p>';
 	}
 
 	/**
@@ -680,10 +658,6 @@ class Coywolf_CVM_Settings {
 				$class  = ( 'ok' === $status ) ? 'notice-success' : 'notice-error';
 				$text   = ( 'ok' === $status ) ? __( 'Connection successful.', 'coywolf-video-manager' ) : (string) $status;
 				echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
-			} elseif ( 'key_created' === $notice ) {
-				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Signing key created.', 'coywolf-video-manager' ) . '</p></div>';
-			} elseif ( 'key_failed' === $notice ) {
-				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Could not create a signing key. Check your token permissions.', 'coywolf-video-manager' ) . '</p></div>';
 			}
 		}
 
@@ -709,22 +683,6 @@ class Coywolf_CVM_Settings {
 		set_transient( 'coywolf_cvm_conn_status', $status, 5 * MINUTE_IN_SECONDS );
 
 		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'tested', $this->page_url() ) );
-		exit;
-	}
-
-	/**
-	 * Handle the Create signing key button.
-	 */
-	public function handle_create_key() {
-		if ( ! current_user_can( Coywolf_Video_Manager::CAPABILITY ) ) {
-			wp_die( esc_html__( 'You are not allowed to do that.', 'coywolf-video-manager' ) );
-		}
-		check_admin_referer( 'coywolf_cvm_create_key' );
-
-		$result = $this->cloudflare->create_signing_key();
-		$notice = is_wp_error( $result ) ? 'key_failed' : 'key_created';
-
-		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', $notice, $this->page_url() ) );
 		exit;
 	}
 }

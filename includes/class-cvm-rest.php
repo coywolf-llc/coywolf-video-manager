@@ -180,17 +180,6 @@ class Coywolf_CVM_REST {
 
 		register_rest_route(
 			self::NS,
-			'/analytics/(?P<uid>[A-Za-z0-9_-]+)',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'analytics' ),
-				'permission_callback' => $admin,
-				'args'                => $uid,
-			)
-		);
-
-		register_rest_route(
-			self::NS,
 			'/play/(?P<uid>[A-Za-z0-9_-]+)',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -281,9 +270,6 @@ class Coywolf_CVM_REST {
 		if ( isset( $params['creator'] ) ) {
 			$fields['creator'] = sanitize_text_field( $params['creator'] );
 		}
-		if ( isset( $params['requireSignedURLs'] ) ) {
-			$fields['requireSignedURLs'] = (bool) $params['requireSignedURLs'];
-		}
 		if ( isset( $params['allowedOrigins'] ) ) {
 			$origins = is_array( $params['allowedOrigins'] ) ? $params['allowedOrigins'] : preg_split( '/[\s,]+/', (string) $params['allowedOrigins'] );
 			$fields['allowedOrigins'] = array_values( array_filter( array_map( 'sanitize_text_field', (array) $origins ) ) );
@@ -292,8 +278,11 @@ class Coywolf_CVM_REST {
 			$fields['thumbnailTimestampPct'] = max( 0, min( 1, (float) $params['thumbnailTimestampPct'] ) );
 		}
 
+		// Store the per-video default poster (timestamp or Media Library image).
+		$this->save_poster( (string) $request['uid'], $params );
+
 		if ( empty( $fields ) ) {
-			return new WP_Error( 'coywolf_cvm_nothing_to_update', __( 'No supported fields were provided.', 'coywolf-video-manager' ), array( 'status' => 400 ) );
+			return rest_ensure_response( array( 'ok' => true ) );
 		}
 
 		$video = $this->cloudflare->update_video( $request['uid'], $fields );
@@ -304,16 +293,46 @@ class Coywolf_CVM_REST {
 	}
 
 	/**
+	 * Persist the per-video default poster from the Edit Video form.
+	 *
+	 * @param string $uid    Video UID.
+	 * @param array  $params Request params.
+	 */
+	private function save_poster( $uid, $params ) {
+		if ( ! isset( $params['posterMode'] ) ) {
+			return;
+		}
+		$mode  = ( 'image' === $params['posterMode'] ) ? 'image' : 'timestamp';
+		$entry = array( 'mode' => $mode );
+		if ( 'image' === $mode ) {
+			$entry['image_id']  = isset( $params['posterImageId'] ) ? absint( $params['posterImageId'] ) : 0;
+			$entry['image_url'] = isset( $params['posterImageUrl'] ) ? esc_url_raw( $params['posterImageUrl'] ) : '';
+		} else {
+			$entry['time'] = isset( $params['posterTime'] ) ? max( 0, (float) $params['posterTime'] ) : 0;
+		}
+
+		$all = get_option( 'coywolf_cvm_posters', array() );
+		if ( ! is_array( $all ) ) {
+			$all = array();
+		}
+		$all[ $uid ] = $entry;
+		update_option( 'coywolf_cvm_posters', $all, false );
+	}
+
+	/**
 	 * Delete a video.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function delete_video( $request ) {
-		$result = $this->cloudflare->delete_video( $request['uid'] );
+		$uid    = (string) $request['uid'];
+		$result = $this->cloudflare->delete_video( $uid );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
+		// Remove the block from any post/page and purge local data.
+		Coywolf_Video_Manager::instance()->purge_video( $uid );
 		return rest_ensure_response( array( 'deleted' => true ) );
 	}
 
@@ -337,9 +356,6 @@ class Coywolf_CVM_REST {
 		}
 		if ( ! empty( $params['creator'] ) ) {
 			$opts['creator'] = sanitize_text_field( $params['creator'] );
-		}
-		if ( isset( $params['requireSignedURLs'] ) ) {
-			$opts['requireSignedURLs'] = (bool) $params['requireSignedURLs'];
 		}
 		if ( ! empty( $params['allowedOrigins'] ) ) {
 			$origins = is_array( $params['allowedOrigins'] ) ? $params['allowedOrigins'] : preg_split( '/[\s,]+/', (string) $params['allowedOrigins'] );
@@ -450,32 +466,6 @@ class Coywolf_CVM_REST {
 		return rest_ensure_response( array( 'ok' => true ) );
 	}
 
-	/**
-	 * Minutes-viewed analytics for a video (last 30 days).
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
-	public function analytics( $request ) {
-		$account = $this->cloudflare->get_account_id();
-		$query   = 'query($accountTag:string!,$uid:string!,$since:Time!,$until:Time!){viewer{accounts(filter:{accountTag:$accountTag}){streamMinutesViewedAdaptiveGroups(limit:1,filter:{uid:$uid,datetime_geq:$since,datetime_leq:$until}){sum{minutesViewed}}}}}';
-		$vars    = array(
-			'accountTag' => $account,
-			'uid'        => $request['uid'],
-			'since'      => gmdate( 'Y-m-d\TH:i:s\Z', time() - 30 * DAY_IN_SECONDS ),
-			'until'      => gmdate( 'Y-m-d\TH:i:s\Z' ),
-		);
-		$data = $this->cloudflare->graphql( $query, $vars );
-		if ( is_wp_error( $data ) ) {
-			return $data;
-		}
-		$minutes = 0;
-		if ( isset( $data['viewer']['accounts'][0]['streamMinutesViewedAdaptiveGroups'][0]['sum']['minutesViewed'] ) ) {
-			$minutes = (int) round( $data['viewer']['accounts'][0]['streamMinutesViewedAdaptiveGroups'][0]['sum']['minutesViewed'] );
-		}
-		return rest_ensure_response( array( 'minutes' => $minutes ) );
-	}
-
 	/* --------------------------------------------------------------------- *
 	 * Public: play / like
 	 * --------------------------------------------------------------------- */
@@ -528,7 +518,6 @@ class Coywolf_CVM_REST {
 			'state'                 => isset( $video['status']['state'] ) ? (string) $video['status']['state'] : '',
 			'thumbnail'             => isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '',
 			'creator'               => isset( $video['creator'] ) ? (string) $video['creator'] : '',
-			'requireSignedURLs'     => ! empty( $video['requireSignedURLs'] ),
 			'allowedOrigins'        => isset( $video['allowedOrigins'] ) && is_array( $video['allowedOrigins'] ) ? $video['allowedOrigins'] : array(),
 			'thumbnailTimestampPct' => isset( $video['thumbnailTimestampPct'] ) ? (float) $video['thumbnailTimestampPct'] : 0,
 			'width'                 => isset( $video['input']['width'] ) ? (int) $video['input']['width'] : 0,

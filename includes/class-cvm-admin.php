@@ -134,6 +134,10 @@ class Coywolf_CVM_Admin {
 			return;
 		}
 		wp_enqueue_style( 'coywolf-cvm-admin', COYWOLF_CVM_URL . 'css/admin.css', array(), Coywolf_Video_Manager::VERSION );
+		// The Edit Video screen (under the list hook) uses the media library for posters.
+		if ( isset( $this->hooks['list'] ) && $hook === $this->hooks['list'] ) {
+			wp_enqueue_media();
+		}
 		wp_enqueue_script( 'coywolf-cvm-admin', COYWOLF_CVM_URL . 'js/admin.js', array( 'wp-api-fetch', 'wp-element', 'wp-i18n' ), Coywolf_Video_Manager::VERSION, true );
 		wp_add_inline_script(
 			'coywolf-cvm-admin',
@@ -143,8 +147,10 @@ class Coywolf_CVM_Admin {
 					'nonce'      => wp_create_nonce( 'wp_rest' ),
 					'pageUrl'    => admin_url( 'admin.php?page=' . self::PAGE ),
 					'i18n'       => array(
-						'copied'         => __( 'Embed code copied to the clipboard.', 'coywolf-video-manager' ),
-						'confirmDelete'  => __( 'Delete this video from Cloudflare? This cannot be undone.', 'coywolf-video-manager' ),
+						'copiedId'       => __( 'Copied!', 'coywolf-video-manager' ),
+						'mediaTitle'     => __( 'Select poster image', 'coywolf-video-manager' ),
+						'mediaButton'    => __( 'Use image', 'coywolf-video-manager' ),
+						'confirmDelete'  => __( 'Delete this video from Cloudflare? This cannot be undone, and its block is removed from any post or page that uses it.', 'coywolf-video-manager' ),
 						'saved'          => __( 'Saved.', 'coywolf-video-manager' ),
 						'noCaptions'     => __( 'No captions yet.', 'coywolf-video-manager' ),
 						'remove'         => __( 'Remove', 'coywolf-video-manager' ),
@@ -216,6 +222,7 @@ class Coywolf_CVM_Admin {
 				}
 				$result = $this->cloudflare->delete_video( $uid );
 				if ( ! is_wp_error( $result ) ) {
+					Coywolf_Video_Manager::instance()->purge_video( $uid );
 					++$deleted;
 				}
 			}
@@ -228,6 +235,9 @@ class Coywolf_CVM_Admin {
 			$uid = sanitize_text_field( wp_unslash( $_GET['uid'] ) );
 			check_admin_referer( 'coywolf_cvm_delete_' . $uid );
 			$result = $this->cloudflare->delete_video( $uid );
+			if ( ! is_wp_error( $result ) ) {
+				Coywolf_Video_Manager::instance()->purge_video( $uid );
+			}
 			$this->redirect_list( array( 'coywolf_cvm_deleted' => is_wp_error( $result ) ? 0 : 1 ) );
 		}
 	}
@@ -292,9 +302,14 @@ class Coywolf_CVM_Admin {
 
 		$this->render_action_notice();
 
+		// Sticky search + filter: persist per-user until reset (empty submit),
+		// and restore when arriving without them (e.g. via the menu).
+		$this->sticky_request( 's', 'coywolf_cvm_search' );
+		$this->sticky_request( 'cvm_filter', 'coywolf_cvm_filter' );
+
 		require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 		require_once COYWOLF_CVM_PATH . 'includes/class-cvm-list-table.php';
-		$table = new Coywolf_CVM_List_Table( $this->cloudflare, $this->stats, $this->index, $this->settings );
+		$table = new Coywolf_CVM_List_Table( $this->cloudflare, $this->stats, $this->index );
 		$table->prepare_items();
 
 		echo '<form method="get">';
@@ -303,6 +318,31 @@ class Coywolf_CVM_Admin {
 		$table->display();
 		echo '</form>';
 		echo '</div>';
+	}
+
+	/**
+	 * Make a request param sticky per user: store it when present (clear on empty
+	 * submit), and restore it into the request when absent.
+	 *
+	 * @param string $key      Request key.
+	 * @param string $meta_key User-meta key.
+	 */
+	private function sticky_request( $key, $meta_key ) {
+		$user = get_current_user_id();
+		if ( isset( $_REQUEST[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$value = sanitize_text_field( wp_unslash( $_REQUEST[ $key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( '' === $value ) {
+				delete_user_meta( $user, $meta_key );
+			} else {
+				update_user_meta( $user, $meta_key, $value );
+			}
+			return;
+		}
+		$value = (string) get_user_meta( $user, $meta_key, true );
+		if ( '' !== $value ) {
+			$_REQUEST[ $key ] = $value;
+			$_GET[ $key ]     = $value;
+		}
 	}
 
 	/**
@@ -354,9 +394,6 @@ class Coywolf_CVM_Admin {
 				<label for="cvm-up-origins"><?php esc_html_e( 'Allowed origins (one per line)', 'coywolf-video-manager' ); ?></label>
 				<textarea id="cvm-up-origins" class="large-text" rows="3" placeholder="example.com"></textarea>
 			</div>
-			<div class="coywolf-cvm-edit-field">
-				<label><input type="checkbox" id="cvm-up-signed" /> <?php esc_html_e( 'Require signed URLs (private video)', 'coywolf-video-manager' ); ?></label>
-			</div>
 			<p>
 				<button type="button" class="button button-primary" id="cvm-up-start"><?php esc_html_e( 'Upload to Cloudflare', 'coywolf-video-manager' ); ?></button>
 			</p>
@@ -395,51 +432,93 @@ class Coywolf_CVM_Admin {
 		$name     = isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '';
 		$creator  = isset( $video['creator'] ) ? (string) $video['creator'] : '';
 		$origins  = isset( $video['allowedOrigins'] ) && is_array( $video['allowedOrigins'] ) ? implode( "\n", $video['allowedOrigins'] ) : '';
-		$signed   = ! empty( $video['requireSignedURLs'] );
 		$duration = isset( $video['duration'] ) ? (float) $video['duration'] : 0;
 		$pct      = isset( $video['thumbnailTimestampPct'] ) ? (float) $video['thumbnailTimestampPct'] : 0;
 		$thumb    = isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '';
-		$pos_time = $duration > 0 ? round( $pct * $duration ) : 0;
+
+		// Per-video poster (timestamp or custom image), saved on this page.
+		$poster      = Coywolf_CVM_Block::video_poster( $uid );
+		$poster_mode = ( $poster && isset( $poster['mode'] ) ) ? $poster['mode'] : 'timestamp';
+		$poster_time = ( $poster && 'timestamp' === $poster_mode && isset( $poster['time'] ) )
+			? (float) $poster['time']
+			: ( $duration > 0 ? round( $pct * $duration ) : 0 );
+		$poster_img_id  = ( $poster && isset( $poster['image_id'] ) ) ? (int) $poster['image_id'] : 0;
+		$poster_img_url = ( $poster && isset( $poster['image_url'] ) ) ? (string) $poster['image_url'] : '';
+		$preview_src    = ( 'image' === $poster_mode && '' !== $poster_img_url ) ? $poster_img_url : $thumb;
+		$back_url       = admin_url( 'admin.php?page=' . self::PAGE );
 		?>
-		<div class="coywolf-cvm-edit" data-uid="<?php echo esc_attr( $uid ); ?>" data-duration="<?php echo esc_attr( $duration ); ?>">
-			<div class="coywolf-cvm-edit-field">
-				<label for="cvm-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label>
-				<input type="text" id="cvm-name" class="regular-text" value="<?php echo esc_attr( $name ); ?>" />
-			</div>
-			<div class="coywolf-cvm-edit-field">
-				<label for="cvm-creator"><?php esc_html_e( 'Creator', 'coywolf-video-manager' ); ?></label>
-				<input type="text" id="cvm-creator" class="regular-text" value="<?php echo esc_attr( $creator ); ?>" />
-			</div>
-			<div class="coywolf-cvm-edit-field">
-				<label for="cvm-origins"><?php esc_html_e( 'Allowed origins (one per line, blank = any)', 'coywolf-video-manager' ); ?></label>
-				<textarea id="cvm-origins" class="large-text" rows="3"><?php echo esc_textarea( $origins ); ?></textarea>
-			</div>
-			<div class="coywolf-cvm-edit-field">
-				<label><input type="checkbox" id="cvm-signed" <?php checked( $signed ); ?> /> <?php esc_html_e( 'Require signed URLs (private video)', 'coywolf-video-manager' ); ?></label>
-			</div>
-			<div class="coywolf-cvm-edit-field coywolf-cvm-poster-preview">
-				<label for="cvm-poster-time"><?php esc_html_e( 'Poster timestamp (seconds)', 'coywolf-video-manager' ); ?></label>
-				<input type="range" id="cvm-poster-time" min="0" max="<?php echo esc_attr( $duration > 0 ? (int) ceil( $duration ) : 600 ); ?>" value="<?php echo esc_attr( $pos_time ); ?>" />
-				<output id="cvm-poster-time-out"><?php echo esc_html( $pos_time ); ?>s</output>
-				<div><img id="cvm-poster-img" src="<?php echo esc_url( $thumb ); ?>" alt="" /></div>
-			</div>
-			<p>
-				<button type="button" class="button button-primary" id="cvm-save"><?php esc_html_e( 'Save changes', 'coywolf-video-manager' ); ?></button>
-				<span class="coywolf-cvm-save-status" role="status" aria-live="polite"></span>
-			</p>
+		<div class="coywolf-cvm-edit" data-uid="<?php echo esc_attr( $uid ); ?>" data-duration="<?php echo esc_attr( $duration ); ?>" data-list-url="<?php echo esc_url( $back_url ); ?>">
+			<table class="form-table" role="presentation"><tbody>
+				<tr>
+					<th scope="row"><label for="cvm-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label></th>
+					<td><input type="text" id="cvm-name" class="regular-text" value="<?php echo esc_attr( $name ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cvm-creator"><?php esc_html_e( 'Creator', 'coywolf-video-manager' ); ?></label></th>
+					<td><input type="text" id="cvm-creator" class="regular-text" value="<?php echo esc_attr( $creator ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cvm-origins"><?php esc_html_e( 'Allowed origins', 'coywolf-video-manager' ); ?></label></th>
+					<td>
+						<textarea id="cvm-origins" class="large-text" rows="3"><?php echo esc_textarea( $origins ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'One per line; blank = any.', 'coywolf-video-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Poster', 'coywolf-video-manager' ); ?></th>
+					<td>
+						<p>
+							<label><input type="radio" name="cvm-poster-mode" value="timestamp" <?php checked( 'image' !== $poster_mode ); ?> /> <?php esc_html_e( 'Use a timestamp', 'coywolf-video-manager' ); ?></label><br />
+							<label><input type="radio" name="cvm-poster-mode" value="image" <?php checked( 'image' === $poster_mode ); ?> /> <?php esc_html_e( 'Use a custom image', 'coywolf-video-manager' ); ?></label>
+						</p>
+						<div class="cvm-poster-timestamp"<?php echo 'image' === $poster_mode ? ' style="display:none;"' : ''; ?>>
+							<input type="range" id="cvm-poster-time" min="0" max="<?php echo esc_attr( $duration > 0 ? (int) ceil( $duration ) : 600 ); ?>" value="<?php echo esc_attr( $poster_time ); ?>" />
+							<output id="cvm-poster-time-out"><?php echo esc_html( $poster_time ); ?>s</output>
+						</div>
+						<div class="cvm-poster-image"<?php echo 'image' !== $poster_mode ? ' style="display:none;"' : ''; ?>>
+							<button type="button" class="button" id="cvm-poster-pick"><?php esc_html_e( 'Select / upload image', 'coywolf-video-manager' ); ?></button>
+							<input type="hidden" id="cvm-poster-image-id" value="<?php echo esc_attr( $poster_img_id ); ?>" />
+							<input type="hidden" id="cvm-poster-image-url" value="<?php echo esc_attr( $poster_img_url ); ?>" />
+						</div>
+						<div class="coywolf-cvm-poster-preview"><img id="cvm-poster-img" src="<?php echo esc_url( $preview_src ); ?>" alt="" /></div>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Video ID', 'coywolf-video-manager' ); ?></th>
+					<td>
+						<span class="coywolf-cvm-copy-id" data-id="<?php echo esc_attr( $uid ); ?>" role="button" tabindex="0" title="<?php esc_attr_e( 'Click to copy', 'coywolf-video-manager' ); ?>">
+							<code><?php echo esc_html( $uid ); ?></code>
+							<span class="dashicons dashicons-clipboard" aria-hidden="true"></span>
+							<span class="coywolf-cvm-copy-hint"><?php esc_html_e( 'click to copy', 'coywolf-video-manager' ); ?></span>
+						</span>
+					</td>
+				</tr>
+			</tbody></table>
 
 			<h2><?php esc_html_e( 'Captions', 'coywolf-video-manager' ); ?></h2>
 			<ul class="coywolf-cvm-captions-list"></ul>
-			<div class="coywolf-cvm-edit-field">
-				<label for="cvm-cap-lang"><?php esc_html_e( 'Language code (BCP-47, e.g. en, es, fr)', 'coywolf-video-manager' ); ?></label>
-				<input type="text" id="cvm-cap-lang" value="en" size="6" />
+			<table class="form-table" role="presentation"><tbody>
+				<tr>
+					<th scope="row"><label for="cvm-cap-lang"><?php esc_html_e( 'Add captions', 'coywolf-video-manager' ); ?></label></th>
+					<td>
+						<input type="text" id="cvm-cap-lang" value="en" size="6" />
+						<input type="file" id="cvm-cap-file" accept=".vtt,text/vtt" />
+						<button type="button" class="button" id="cvm-cap-upload"><?php esc_html_e( 'Upload VTT', 'coywolf-video-manager' ); ?></button>
+						<button type="button" class="button" id="cvm-cap-generate"><?php esc_html_e( 'Auto-generate', 'coywolf-video-manager' ); ?></button>
+						<span class="coywolf-cvm-cap-status" role="status" aria-live="polite"></span>
+						<p class="description"><?php esc_html_e( 'Language code is BCP-47, e.g. en, es, fr.', 'coywolf-video-manager' ); ?></p>
+					</td>
+				</tr>
+			</tbody></table>
+
+			<div class="coywolf-cvm-edit-actions">
+				<div class="coywolf-cvm-edit-actions-left">
+					<button type="button" class="button button-primary" id="cvm-save"><?php esc_html_e( 'Save changes', 'coywolf-video-manager' ); ?></button>
+					<a class="button" href="<?php echo esc_url( $back_url ); ?>"><?php esc_html_e( 'Cancel', 'coywolf-video-manager' ); ?></a>
+					<span class="coywolf-cvm-save-status" role="status" aria-live="polite"></span>
+				</div>
+				<button type="button" class="button coywolf-cvm-delete-btn" id="cvm-delete"><?php esc_html_e( 'Delete video', 'coywolf-video-manager' ); ?></button>
 			</div>
-			<p>
-				<input type="file" id="cvm-cap-file" accept=".vtt,text/vtt" />
-				<button type="button" class="button" id="cvm-cap-upload"><?php esc_html_e( 'Upload VTT', 'coywolf-video-manager' ); ?></button>
-				<button type="button" class="button" id="cvm-cap-generate"><?php esc_html_e( 'Auto-generate', 'coywolf-video-manager' ); ?></button>
-				<span class="coywolf-cvm-cap-status" role="status" aria-live="polite"></span>
-			</p>
 		</div>
 		<?php
 		echo '</div>';
