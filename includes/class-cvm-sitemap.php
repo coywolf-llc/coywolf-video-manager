@@ -251,10 +251,31 @@ class Coywolf_CVM_Sitemap {
 	 */
 	private function xml_text( $text ) {
 		$text = esc_xml( (string) $text );
+
 		if ( function_exists( 'mb_encode_numericentity' ) ) {
-			$text = mb_encode_numericentity( $text, array( 0x80, 0x10ffff, 0, 0x1fffff ), 'UTF-8' );
+			return mb_encode_numericentity( $text, array( 0x80, 0x10ffff, 0, 0x1fffff ), 'UTF-8' );
 		}
-		return $text;
+
+		// Fallback when the mbstring extension is unavailable: decode each
+		// multibyte UTF-8 sequence to its code point and emit a numeric reference.
+		return (string) preg_replace_callback(
+			'/[\x{0080}-\x{10FFFF}]/u',
+			static function ( $match ) {
+				$bytes = $match[0];
+				$len   = strlen( $bytes );
+				if ( 2 === $len ) {
+					$code = ( ( ord( $bytes[0] ) & 0x1F ) << 6 ) | ( ord( $bytes[1] ) & 0x3F );
+				} elseif ( 3 === $len ) {
+					$code = ( ( ord( $bytes[0] ) & 0x0F ) << 12 ) | ( ( ord( $bytes[1] ) & 0x3F ) << 6 ) | ( ord( $bytes[2] ) & 0x3F );
+				} elseif ( 4 === $len ) {
+					$code = ( ( ord( $bytes[0] ) & 0x07 ) << 18 ) | ( ( ord( $bytes[1] ) & 0x3F ) << 12 ) | ( ( ord( $bytes[2] ) & 0x3F ) << 6 ) | ( ord( $bytes[3] ) & 0x3F );
+				} else {
+					return $bytes;
+				}
+				return '&#' . $code . ';';
+			},
+			$text
+		);
 	}
 
 	/**
