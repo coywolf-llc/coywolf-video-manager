@@ -28,6 +28,8 @@
 	var SelectControl = components.SelectControl;
 	var RangeControl = components.RangeControl;
 	var TextControl = components.TextControl;
+	var ColorPalette = components.ColorPalette;
+	var BaseControl = components.BaseControl;
 	var Button = components.Button;
 	var Modal = components.Modal;
 	var Spinner = components.Spinner;
@@ -300,20 +302,38 @@
 			),
 			el(
 				PanelBody,
-				{ title: __( 'Engagement & schema', 'coywolf-video-manager' ), initialOpen: false },
+				{ title: __( 'Appearance', 'coywolf-video-manager' ), initialOpen: false },
+				el( SelectControl, {
+					label: __( 'Alignment', 'coywolf-video-manager' ),
+					value: a.contentAlign || '',
+					options: [
+						{ label: __( 'Inherit', 'coywolf-video-manager' ) + ' (' + ( defaults.align || 'left' ) + ')', value: '' },
+						{ label: __( 'Left', 'coywolf-video-manager' ), value: 'left' },
+						{ label: __( 'Center', 'coywolf-video-manager' ), value: 'center' },
+						{ label: __( 'Right', 'coywolf-video-manager' ), value: 'right' }
+					],
+					__nextHasNoMarginBottom: true,
+					onChange: function ( v ) {
+						setAttributes( { contentAlign: v || undefined } );
+					}
+				} ),
 				inheritToggle( 'showPlays', __( 'Show view count', 'coywolf-video-manager' ) ),
 				inheritToggle( 'playsInSchema', __( 'Include views in schema', 'coywolf-video-manager' ) ),
 				inheritToggle( 'enableLikes', __( 'Show like button', 'coywolf-video-manager' ) ),
 				inheritToggle( 'showLikeCount', __( 'Show like count', 'coywolf-video-manager' ) ),
-				el( TextControl, {
-					label: __( 'Player accent color (hex)', 'coywolf-video-manager' ),
-					value: a.primaryColor,
-					placeholder: '#ffffff',
-					__nextHasNoMarginBottom: true,
-					onChange: function ( v ) {
-						setAttributes( { primaryColor: v } );
-					}
-				} )
+				el(
+					BaseControl,
+					{ label: __( 'Play button color', 'coywolf-video-manager' ), __nextHasNoMarginBottom: true },
+					el( ColorPalette, {
+						colors: [],
+						value: a.primaryColor || undefined,
+						clearable: true,
+						disableCustomColors: false,
+						onChange: function ( v ) {
+							setAttributes( { primaryColor: v || '' } );
+						}
+					} )
+				)
 			)
 		);
 

@@ -185,7 +185,6 @@ class Coywolf_CVM_Block {
 		$colors = array(
 			'title_color' => '--cvm-title-color',
 			'like_color'  => '--cvm-like-color',
-			'like_bg'     => '--cvm-like-bg',
 			'meta_color'  => '--cvm-meta-color',
 		);
 		foreach ( $colors as $key => $var ) {
@@ -195,13 +194,21 @@ class Coywolf_CVM_Block {
 			}
 		}
 
+		// Like background: an explicitly empty value means "no background".
+		$like_bg = (string) $this->settings->get( 'like_bg' );
+		if ( '' === $like_bg ) {
+			$vars['--cvm-like-bg'] = 'transparent';
+		} elseif ( $like_bg !== (string) $defaults['like_bg'] ) {
+			$vars['--cvm-like-bg'] = $like_bg;
+		}
+
 		$weight = (string) $this->settings->get( 'title_weight' );
 		if ( $weight !== (string) $defaults['title_weight'] ) {
 			$vars['--cvm-title-weight'] = $weight;
 		}
-		$align = (string) $this->settings->get( 'title_align' );
-		if ( $align !== (string) $defaults['title_align'] ) {
-			$vars['--cvm-title-align'] = $align;
+		$align = (string) $this->settings->get( 'align' );
+		if ( $align !== (string) $defaults['align'] ) {
+			$vars['--cvm-align'] = $align;
 		}
 
 		$title_size = $this->settings->get_size( 'title_size' );
@@ -253,7 +260,10 @@ class Coywolf_CVM_Block {
 		$name     = isset( $attributes['videoName'] ) && '' !== $attributes['videoName'] ? (string) $attributes['videoName'] : get_the_title();
 		$duration = isset( $attributes['duration'] ) ? (float) $attributes['duration'] : 0;
 		$start    = isset( $attributes['startTime'] ) ? max( 0, (int) $attributes['startTime'] ) : 0;
-		$primary  = isset( $attributes['primaryColor'] ) ? (string) $attributes['primaryColor'] : '';
+		// Play-button (accent) color: per-block override, else the Settings default.
+		$primary = isset( $attributes['primaryColor'] ) && '' !== $attributes['primaryColor']
+			? (string) $attributes['primaryColor']
+			: (string) $this->settings->get( 'player_color' );
 
 		// Aspect ratio (height/width) and upload date come from the block, with a
 		// cached API lookup as a fallback for older blocks.
@@ -329,14 +339,18 @@ class Coywolf_CVM_Block {
 			$classes .= ' coywolf-cvm-scheme-' . $scheme;
 		}
 
-		$wrapper = get_block_wrapper_attributes(
-			array(
-				'class'       => $classes,
-				'data-uid'    => $uid,
-				'data-player' => $cfg['player'],
-				'data-mode'   => $mode,
-			)
+		$attrs = array(
+			'class'       => $classes,
+			'data-uid'    => $uid,
+			'data-player' => $cfg['player'],
+			'data-mode'   => $mode,
 		);
+		// Per-block alignment override (else the Settings default applies).
+		if ( isset( $attributes['contentAlign'] ) && in_array( $attributes['contentAlign'], array( 'left', 'center', 'right' ), true ) ) {
+			$attrs['style'] = '--cvm-align:' . $attributes['contentAlign'] . ';';
+		}
+
+		$wrapper = get_block_wrapper_attributes( $attrs );
 
 		ob_start();
 		?>
@@ -458,7 +472,7 @@ class Coywolf_CVM_Block {
 	 * @return string
 	 */
 	private function meta_markup( $uid, $cfg, $counts, $uploaded ) {
-		$like  = $cfg['enableLikes'] ? $this->like_button( $uid, (int) $counts['likes'], $cfg['showLikeCount'] ) : '';
+		$like  = $cfg['enableLikes'] ? $this->like_button( $uid, (int) $counts['likes'], $cfg['showLikeCount'], $cfg['like_icon'] ) : '';
 		$views = '';
 		$date  = '';
 
@@ -503,9 +517,10 @@ class Coywolf_CVM_Block {
 	 * @param string $uid        Video UID.
 	 * @param int    $likes      Like count.
 	 * @param bool   $show_count Whether to show the count at all.
+	 * @param string $icon       heart|thumbs|star.
 	 * @return string
 	 */
-	private function like_button( $uid, $likes, $show_count ) {
+	private function like_button( $uid, $likes, $show_count, $icon ) {
 		$count_class = 'coywolf-cvm-like-count' . ( $likes < 1 ? ' is-empty' : '' );
 		$count_html  = $show_count
 			? '<span class="' . esc_attr( $count_class ) . '">' . esc_html( $likes > 0 ? number_format_i18n( $likes ) : '' ) . '</span>'
@@ -515,7 +530,7 @@ class Coywolf_CVM_Block {
 			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span>%3$s%4$s</button>',
 			esc_attr( $uid ),
 			esc_html__( 'Like this video', 'coywolf-video-manager' ),
-			self::thumb_svg(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG markup.
+			self::thumb_svg( $icon ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG markup.
 			$count_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
 		);
 	}
@@ -526,8 +541,14 @@ class Coywolf_CVM_Block {
 	 *
 	 * @return string
 	 */
-	public static function thumb_svg() {
-		return '<svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg>';
+	public static function thumb_svg( $icon = 'heart' ) {
+		$paths = array(
+			'heart'  => '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/>',
+			'thumbs' => '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
+			'star'   => '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+		);
+		$path = isset( $paths[ $icon ] ) ? $paths[ $icon ] : $paths['heart'];
+		return '<svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $path . '</svg>';
 	}
 
 	/**
@@ -594,7 +615,10 @@ class Coywolf_CVM_Block {
 	 * @return array
 	 */
 	private function resolve( $attributes ) {
-		$cfg = array( 'player' => $this->settings->get( 'player' ) );
+		$cfg = array(
+			'player'    => $this->settings->get( 'player' ),
+			'like_icon' => $this->settings->get( 'like_icon' ),
+		);
 		foreach ( $this->inherit_map as $attr => $setting_key ) {
 			if ( array_key_exists( $attr, $attributes ) && null !== $attributes[ $attr ] ) {
 				$cfg[ $attr ] = $attributes[ $attr ];
