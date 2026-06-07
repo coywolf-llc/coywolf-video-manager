@@ -80,10 +80,10 @@ Style the on-post UI from **Videos → Settings → Appearance** (with a live pr
 | `--cvm-title-weight` | Video name font weight | `700` |
 | `--cvm-desc-weight` | Description font weight | `400` |
 | `--cvm-align` | Alignment of the name and the like/views/date row | `left` |
-| `--cvm-like-color` | Like icon & text — unclicked | `#0f0f0f` |
-| `--cvm-like-bg` | Like background — unclicked (empty in Settings = none) | `#f2f2f2` |
-| `--cvm-like-active` | Like icon & text — clicked (and unclicked-hover) | unclicked color |
-| `--cvm-like-active-bg` | Like background — clicked (and unclicked-hover) | unclicked background |
+| `--cvm-like-color` | Like icon & text — unclicked (also used on hover) | `#0f0f0f` |
+| `--cvm-like-bg` | Like background — unclicked / hover (empty in Settings = none) | `#f2f2f2` |
+| `--cvm-like-active` | Like icon & text — clicked | unclicked color |
+| `--cvm-like-active-bg` | Like background — clicked | unclicked background |
 | `--cvm-meta-color` | Views & date color | `#606060` |
 | `--cvm-meta-size` | Views & date size | `0.9rem` |
 

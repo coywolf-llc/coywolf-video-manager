@@ -147,12 +147,26 @@
 		}
 	}
 
+	function setLiked( btn, uid, liked ) {
+		btn.classList.toggle( 'is-liked', liked );
+		btn.setAttribute( 'aria-pressed', liked ? 'true' : 'false' );
+		try {
+			if ( liked ) {
+				localStorage.setItem( 'coywolf_cvm_liked_' + uid, '1' );
+			} else {
+				localStorage.removeItem( 'coywolf_cvm_liked_' + uid );
+			}
+		} catch ( e ) {} // eslint-disable-line no-empty
+	}
+
 	function wireLikes() {
 		forEach( document.querySelectorAll( '.coywolf-cvm-like' ), function ( btn ) {
 			var uid = btn.getAttribute( 'data-uid' );
 			if ( ! uid ) {
 				return;
 			}
+			var busy = false;
+
 			try {
 				if ( localStorage.getItem( 'coywolf_cvm_liked_' + uid ) ) {
 					btn.setAttribute( 'aria-pressed', 'true' );
@@ -160,36 +174,41 @@
 				}
 			} catch ( e ) {} // eslint-disable-line no-empty
 
+			// After a click, hold the new colors until the cursor leaves the
+			// button (so it doesn't immediately flip to the hover preview).
+			function release() {
+				btn.classList.remove( 'is-held' );
+			}
+			btn.addEventListener( 'mouseleave', release );
+			btn.addEventListener( 'blur', release );
+
 			btn.addEventListener( 'click', function () {
-				btn.disabled = true;
-				// Animate immediately for responsiveness.
+				if ( busy ) {
+					return;
+				}
+				busy = true;
+
+				btn.classList.add( 'is-held' );
+				// Optimistic toggle for instant feedback; reconcile on response.
+				setLiked( btn, uid, ! btn.classList.contains( 'is-liked' ) );
+
 				btn.classList.remove( 'is-animating' );
 				void btn.offsetWidth; // restart the animation.
 				btn.classList.add( 'is-animating' );
 
 				api( '/like/' + encodeURIComponent( uid ) ).then( function ( res ) {
-					btn.disabled = false;
+					busy = false;
 					if ( ! res ) {
 						return;
 					}
 					if ( 'undefined' !== typeof res.likes ) {
 						setLikeCount( btn, res.likes );
 					}
-					if ( res.liked ) {
-						btn.setAttribute( 'aria-pressed', 'true' );
-						btn.classList.add( 'is-liked' );
-						try {
-							localStorage.setItem( 'coywolf_cvm_liked_' + uid, '1' );
-						} catch ( e ) {} // eslint-disable-line no-empty
-					} else {
-						btn.setAttribute( 'aria-pressed', 'false' );
-						btn.classList.remove( 'is-liked' );
-						try {
-							localStorage.removeItem( 'coywolf_cvm_liked_' + uid );
-						} catch ( e ) {} // eslint-disable-line no-empty
+					if ( 'undefined' !== typeof res.liked ) {
+						setLiked( btn, uid, !! res.liked );
 					}
 				} ).catch( function () {
-					btn.disabled = false;
+					busy = false;
 				} );
 			} );
 		} );

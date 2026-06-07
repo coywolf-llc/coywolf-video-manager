@@ -196,10 +196,16 @@
 			input.addEventListener( 'input', updatePreview );
 		} );
 
-		// Let the preview's like button demonstrate the outline → filled toggle.
+		// Let the preview's like button demonstrate the hover/click interaction
+		// (hover fills + reverts colors; a click holds the new state until the
+		// cursor leaves the button).
 		var like = document.querySelector( '#coywolf-cvm-preview .coywolf-cvm-like' );
 		if ( like ) {
+			like.addEventListener( 'mouseleave', function () {
+				like.classList.remove( 'is-held' );
+			} );
 			like.addEventListener( 'click', function () {
+				like.classList.add( 'is-held' );
 				like.classList.toggle( 'is-liked' );
 				like.setAttribute( 'aria-pressed', like.classList.contains( 'is-liked' ) ? 'true' : 'false' );
 				like.classList.remove( 'is-animating' );
