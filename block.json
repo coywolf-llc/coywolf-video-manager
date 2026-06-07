@@ -17,6 +17,8 @@
 		"videoId": { "type": "string", "default": "" },
 		"videoName": { "type": "string", "default": "" },
 		"duration": { "type": "number", "default": 0 },
+		"aspectRatio": { "type": "number", "default": 0 },
+		"uploaded": { "type": "string", "default": "" },
 		"sizeMode": { "type": "string", "default": "responsive" },
 		"maxWidth": { "type": "number", "default": 800 },
 		"posterMode": { "type": "string", "default": "timestamp" },
@@ -34,7 +36,6 @@
 		"playsInSchema": { "type": "boolean" },
 		"enableLikes": { "type": "boolean" },
 		"showLikeCount": { "type": "boolean" },
-		"lightbox": { "type": "boolean" },
 		"primaryColor": { "type": "string", "default": "" }
 	},
 	"editorScript": "coywolf-cvm-block",

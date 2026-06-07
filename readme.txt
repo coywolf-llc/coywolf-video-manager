@@ -16,12 +16,11 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 
 Features:
 
-* Video block — search your entire Stream library and embed a video, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
+* Video block — search your entire Stream library and embed a responsive video in a figure/figcaption, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
 * Three players — the Cloudflare Stream player by default, plus bundled open-source Plyr and Video.js options, all playing Cloudflare's adaptive HLS.
-* Plays & likes — recorded locally in WordPress (Cloudflare's API does not expose them), optionally shown on the post and included in the video schema.
-* Video schema — automatic VideoObject JSON-LD with thumbnail, duration, upload date, and optional play/like interaction counts.
-* Lightbox — open and play a video in a lightbox on click.
-* All Videos screen — a table of every video with plays, likes, and how many posts and pages embed each one.
+* Likes, views & upload date — a YouTube-style row under each video. Cloudflare's API does not expose likes or views, so the plugin records them locally in WordPress.
+* Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, duration, upload date, and optional view/like interaction counts.
+* All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
 * Edit Video screen — rename, set the creator, manage allowed origins, control signed-URL protection, pick the poster timestamp with a live preview, and add or AI-generate captions.
 * Upload to Cloudflare — upload videos straight from WordPress (resumable for large files), with the same options as the Edit screen.
 * Signed URLs — play private (signed-URL) videos by minting short-lived tokens server-side.
