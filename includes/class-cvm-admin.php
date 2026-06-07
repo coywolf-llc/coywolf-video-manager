@@ -164,13 +164,32 @@ class Coywolf_CVM_Admin {
 			'before'
 		);
 
-		// The Settings screen uses the WordPress color picker (hex-capable).
-		if ( isset( $this->hooks['settings'] ) && $hook === $this->hooks['settings'] ) {
-			wp_enqueue_style( 'wp-color-picker' );
-			wp_enqueue_script( 'wp-color-picker' );
+		// The Settings screen uses the bundled jscolorpicker + a live preview.
+		if ( isset( $this->hooks['settings'] ) && $hook === $this->hooks['settings'] && $this->cloudflare->is_configured() ) {
+			wp_enqueue_style( 'coywolf-cvm-jscolorpicker', COYWOLF_CVM_URL . 'vendor/jscolorpicker/colorpicker.min.css', array(), '1.1.0' );
+			wp_enqueue_script( 'coywolf-cvm-jscolorpicker', COYWOLF_CVM_URL . 'vendor/jscolorpicker/colorpicker.iife.min.js', array(), '1.1.0', true );
+			wp_enqueue_style( 'coywolf-cvm-view' ); // the preview reuses the front-end styles.
+			wp_enqueue_script( 'coywolf-cvm-settings', COYWOLF_CVM_URL . 'js/settings.js', array( 'coywolf-cvm-jscolorpicker' ), Coywolf_Video_Manager::VERSION, true );
+
+			$d = Coywolf_CVM_Settings::defaults();
 			wp_add_inline_script(
-				'wp-color-picker',
-				'jQuery(function($){$(".coywolf-cvm-color").wpColorPicker();});'
+				'coywolf-cvm-settings',
+				'window.coywolfCVMSettings = ' . wp_json_encode(
+					array(
+						'option'   => Coywolf_CVM_Settings::OPTION,
+						'defaults' => array(
+							'title_color'  => $d['title_color'],
+							'title_size'   => $d['title_size'],
+							'title_weight' => $d['title_weight'],
+							'title_align'  => $d['title_align'],
+							'like_color'   => $d['like_color'],
+							'like_bg'      => $d['like_bg'],
+							'meta_color'   => $d['meta_color'],
+							'meta_size'    => $d['meta_size'],
+						),
+					)
+				) . ';',
+				'before'
 			);
 		}
 	}

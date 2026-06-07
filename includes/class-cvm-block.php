@@ -177,28 +177,40 @@ class Coywolf_CVM_Block {
 	 * @return string
 	 */
 	private function custom_css() {
-		$map  = array(
-			'title_color'  => '--cvm-title-color',
-			'title_weight' => '--cvm-title-weight',
-			'title_align'  => '--cvm-title-align',
-			'like_color'   => '--cvm-like-color',
-			'like_bg'      => '--cvm-like-bg',
-			'meta_color'   => '--cvm-meta-color',
+		$defaults = Coywolf_CVM_Settings::defaults();
+		$vars     = array();
+
+		// Colors: only when changed from the default, so a chosen color scheme
+		// isn't clobbered by emitting the default values.
+		$colors = array(
+			'title_color' => '--cvm-title-color',
+			'like_color'  => '--cvm-like-color',
+			'like_bg'     => '--cvm-like-bg',
+			'meta_color'  => '--cvm-meta-color',
 		);
-		$vars = array();
-		foreach ( $map as $key => $var ) {
+		foreach ( $colors as $key => $var ) {
 			$value = (string) $this->settings->get( $key );
-			if ( '' !== $value ) {
+			if ( '' !== $value && $value !== (string) $defaults[ $key ] ) {
 				$vars[ $var ] = $value;
 			}
 		}
-		$title_size = (int) $this->settings->get( 'title_size' );
-		if ( $title_size > 0 ) {
-			$vars['--cvm-title-size'] = $title_size . 'px';
+
+		$weight = (string) $this->settings->get( 'title_weight' );
+		if ( $weight !== (string) $defaults['title_weight'] ) {
+			$vars['--cvm-title-weight'] = $weight;
 		}
-		$meta_size = (int) $this->settings->get( 'meta_size' );
-		if ( $meta_size > 0 ) {
-			$vars['--cvm-meta-size'] = $meta_size . 'px';
+		$align = (string) $this->settings->get( 'title_align' );
+		if ( $align !== (string) $defaults['title_align'] ) {
+			$vars['--cvm-title-align'] = $align;
+		}
+
+		$title_size = $this->settings->get_size( 'title_size' );
+		if ( abs( $title_size - (float) $defaults['title_size'] ) > 0.001 ) {
+			$vars['--cvm-title-size'] = $this->rem( $title_size );
+		}
+		$meta_size = $this->settings->get_size( 'meta_size' );
+		if ( abs( $meta_size - (float) $defaults['meta_size'] ) > 0.001 ) {
+			$vars['--cvm-meta-size'] = $this->rem( $meta_size );
 		}
 
 		if ( empty( $vars ) ) {
@@ -209,6 +221,16 @@ class Coywolf_CVM_Block {
 			$css .= $name . ':' . $value . ';';
 		}
 		return $css . '}';
+	}
+
+	/**
+	 * Format a float as a trimmed rem value (1.15 → "1.15rem", 2.0 → "2rem").
+	 *
+	 * @param float $value rem value.
+	 * @return string
+	 */
+	private function rem( $value ) {
+		return rtrim( rtrim( number_format( (float) $value, 2, '.', '' ), '0' ), '.' ) . 'rem';
 	}
 
 	/* --------------------------------------------------------------------- *
@@ -305,9 +327,15 @@ class Coywolf_CVM_Block {
 			? $this->oss_markup( $hls_url, $poster, $name, $cfg, $pct, $maxwidth )
 			: $this->iframe_markup( $iframe_url, $name, $cfg, $pct, $maxwidth, $poster );
 
+		$classes = 'coywolf-cvm';
+		$scheme  = (string) $this->settings->get( 'color_scheme' );
+		if ( in_array( $scheme, array( 'auto', 'light', 'dark' ), true ) ) {
+			$classes .= ' coywolf-cvm-scheme-' . $scheme;
+		}
+
 		$wrapper = get_block_wrapper_attributes(
 			array(
-				'class'       => 'coywolf-cvm',
+				'class'       => $classes,
 				'data-uid'    => $uid,
 				'data-player' => $cfg['player'],
 				'data-mode'   => $mode,
@@ -487,13 +515,23 @@ class Coywolf_CVM_Block {
 			? '<span class="' . esc_attr( $count_class ) . '">' . esc_html( $likes > 0 ? number_format_i18n( $likes ) : '' ) . '</span>'
 			: '';
 
-		// Outline thumbs-up (stroke); CSS fills it when the button is liked.
 		return sprintf(
-			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span><svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>%3$s</button>',
+			'<button type="button" class="coywolf-cvm-like" data-uid="%1$s" aria-pressed="false"><span class="screen-reader-text">%2$s</span>%3$s%4$s</button>',
 			esc_attr( $uid ),
 			esc_html__( 'Like this video', 'coywolf-video-manager' ),
+			self::thumb_svg(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG markup.
 			$count_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
 		);
+	}
+
+	/**
+	 * The outline thumbs-up SVG (CSS fills it solid when the button is liked).
+	 * Shared by the block and the settings preview.
+	 *
+	 * @return string
+	 */
+	public static function thumb_svg() {
+		return '<svg class="coywolf-cvm-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>';
 	}
 
 	/**

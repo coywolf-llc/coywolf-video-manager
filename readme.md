@@ -76,6 +76,33 @@ This plugin connects WordPress to **Cloudflare Stream**, a third-party service, 
 
 No data is sent anywhere except Cloudflare, and only as required to manage and play your videos.
 
+## Styling with CSS
+
+Style the on-post UI from **Videos → Settings → Appearance** (with a live preview and a color picker that accepts hex), or override it in your theme's CSS — or both. The block exposes CSS custom properties on the `.coywolf-cvm` wrapper:
+
+| Property | Controls | Default |
+| --- | --- | --- |
+| `--cvm-title-color` | Video name color | `inherit` |
+| `--cvm-title-size` | Video name size | `1.15rem` |
+| `--cvm-title-weight` | Video name weight | `700` |
+| `--cvm-title-align` | Video name alignment | `left` |
+| `--cvm-like-color` | Like icon & text color | `#0f0f0f` |
+| `--cvm-like-bg` | Like button background | `#f2f2f2` |
+| `--cvm-meta-color` | Views & date color | `#606060` |
+| `--cvm-meta-size` | Views & date size | `0.9rem` |
+
+Override them (or target the classes directly) from your theme:
+
+```css
+.coywolf-cvm {
+  --cvm-title-size: 1.4rem;
+  --cvm-like-bg: #000;
+  --cvm-like-color: #fff;
+}
+```
+
+Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name), `.coywolf-cvm-like` (button), `.coywolf-cvm-thumb` (icon), `.coywolf-cvm-views`, `.coywolf-cvm-date`. An optional **light/dark scheme** adds `.coywolf-cvm-scheme-dark` or `.coywolf-cvm-scheme-auto` (which follows the visitor's `prefers-color-scheme`). The plugin's CSS avoids `!important`, so your theme can override it.
+
 ## Screenshots
 
 1. The All Videos screen.
