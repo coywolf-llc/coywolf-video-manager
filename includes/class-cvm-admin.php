@@ -151,6 +151,8 @@ class Coywolf_CVM_Admin {
 						'mediaTitle'     => __( 'Select poster image', 'coywolf-video-manager' ),
 						'mediaButton'    => __( 'Use image', 'coywolf-video-manager' ),
 						'confirmDelete'  => __( 'Delete this video from Cloudflare? This cannot be undone, and its block is removed from any post or page that uses it.', 'coywolf-video-manager' ),
+						'deleteConfirm'  => __( 'Delete', 'coywolf-video-manager' ),
+						'deleting'       => __( 'Deleting…', 'coywolf-video-manager' ),
 						'saved'          => __( 'Saved.', 'coywolf-video-manager' ),
 						'noCaptions'     => __( 'No captions yet.', 'coywolf-video-manager' ),
 						'remove'         => __( 'Remove', 'coywolf-video-manager' ),
@@ -352,9 +354,13 @@ class Coywolf_CVM_Admin {
 	}
 
 	/**
-	 * Show a notice after a delete action.
+	 * Show a notice after a save or delete action (redirected from the Edit screen).
 	 */
 	private function render_action_notice() {
+		if ( isset( $_GET['coywolf_cvm_saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Video updated.', 'coywolf-video-manager' ) . '</p></div>';
+			return;
+		}
 		if ( ! isset( $_GET['coywolf_cvm_deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
@@ -546,6 +552,17 @@ class Coywolf_CVM_Admin {
 					<span class="coywolf-cvm-save-status" role="status" aria-live="polite"></span>
 				</div>
 				<button type="button" class="button coywolf-cvm-delete-btn" id="cvm-delete"><?php esc_html_e( 'Delete video', 'coywolf-video-manager' ); ?></button>
+			</div>
+
+			<div class="coywolf-cvm-modal-overlay" id="cvm-delete-modal" hidden>
+				<div class="coywolf-cvm-modal" role="dialog" aria-modal="true" aria-labelledby="cvm-delete-modal-title">
+					<h2 id="cvm-delete-modal-title"><?php esc_html_e( 'Delete this video?', 'coywolf-video-manager' ); ?></h2>
+					<p><?php esc_html_e( 'Are you sure you want to delete this video? It will be permanently removed from Cloudflare, and its block will be removed from any post or page that includes it. This cannot be undone.', 'coywolf-video-manager' ); ?></p>
+					<div class="coywolf-cvm-modal-actions">
+						<button type="button" class="button" id="cvm-delete-cancel"><?php esc_html_e( 'Cancel', 'coywolf-video-manager' ); ?></button>
+						<button type="button" class="button coywolf-cvm-delete-btn" id="cvm-delete-confirm"><?php esc_html_e( 'Delete', 'coywolf-video-manager' ); ?></button>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php
