@@ -247,22 +247,31 @@
 						}
 					} )
 					: el(
-						MediaUploadCheck,
-						{},
-						el( MediaUpload, {
-							allowedTypes: [ 'image' ],
-							value: a.posterId,
-							onSelect: function ( m ) {
-								setAttributes( { posterId: m.id, posterUrl: m.url } );
-							},
-							render: function ( o ) {
-								return el(
-									Button,
-									{ variant: 'secondary', onClick: o.open },
-									a.posterUrl ? __( 'Change image', 'coywolf-video-manager' ) : __( 'Select image', 'coywolf-video-manager' )
-								);
-							}
-						} )
+						'div',
+						{ className: 'coywolf-cvm-poster-media' },
+						el(
+							MediaUploadCheck,
+							{},
+							el( MediaUpload, {
+								allowedTypes: [ 'image' ],
+								value: a.posterId,
+								onSelect: function ( m ) {
+									setAttributes( { posterId: m.id, posterUrl: m.url } );
+								},
+								render: function ( o ) {
+									return el(
+										Button,
+										{ variant: 'secondary', onClick: o.open },
+										a.posterUrl ? __( 'Change image', 'coywolf-video-manager' ) : __( 'Select image', 'coywolf-video-manager' )
+									);
+								}
+							} )
+						),
+						el(
+							'p',
+							{ className: 'components-base-control__help', style: { marginTop: '8px' } },
+							__( 'Recommended size:', 'coywolf-video-manager' ) + ' 1200 × ' + ( a.aspectRatio > 0 ? Math.round( 1200 * a.aspectRatio ) : 675 ) + 'px'
+						)
 					)
 			),
 			el(
