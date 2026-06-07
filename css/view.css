@@ -22,8 +22,9 @@
 	--cvm-desc-weight: 400;
 	--cvm-align: left;
 	--cvm-like-color: #0f0f0f;
-	--cvm-like-active: var( --cvm-like-color );
 	--cvm-like-bg: #f2f2f2;
+	--cvm-like-active: var( --cvm-like-color );
+	--cvm-like-active-bg: var( --cvm-like-bg );
 	--cvm-meta-color: #606060;
 	--cvm-meta-size: 0.9rem;
 
@@ -131,16 +132,29 @@
 	cursor: pointer;
 	-webkit-appearance: none;
 	appearance: none;
-	transition: filter 0.15s ease, color 0.15s ease;
+	transition: filter 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .coywolf-cvm .coywolf-cvm-like:hover {
 	filter: brightness( 0.95 );
 }
 
-/* On hover (before liking), preview the clicked color. */
+/* Unclicked → hover previews the clicked color + background. */
 .coywolf-cvm .coywolf-cvm-like:not( .is-liked ):hover {
 	color: var( --cvm-like-active );
+	background: var( --cvm-like-active-bg );
+}
+
+/* Clicked uses the clicked color + background. */
+.coywolf-cvm .coywolf-cvm-like.is-liked {
+	color: var( --cvm-like-active );
+	background: var( --cvm-like-active-bg );
+}
+
+/* Clicked → hover previews the unclicked color + background. */
+.coywolf-cvm .coywolf-cvm-like.is-liked:hover {
+	color: var( --cvm-like-color );
+	background: var( --cvm-like-bg );
 }
 
 .coywolf-cvm .coywolf-cvm-like:disabled {
@@ -148,7 +162,7 @@
 	cursor: default;
 }
 
-/* Thumbs-up: outline by default, filled when liked (color stays the same). */
+/* Icon: outline by default, filled when liked (in the current text color). */
 .coywolf-cvm .coywolf-cvm-thumb {
 	display: inline-block;
 	width: 20px;
@@ -161,17 +175,6 @@
 
 .coywolf-cvm .coywolf-cvm-like.is-liked .coywolf-cvm-thumb {
 	fill: currentColor;
-}
-
-/* When a "clicked" color is configured, liking fills the button with it. */
-.coywolf-cvm.coywolf-cvm-active-like .coywolf-cvm-like.is-liked {
-	background: var( --cvm-like-active );
-	color: #fff;
-}
-
-.coywolf-cvm.coywolf-cvm-active-like .coywolf-cvm-like.is-liked .coywolf-cvm-thumb {
-	fill: #fff;
-	stroke: #fff;
 }
 
 .coywolf-cvm .coywolf-cvm-like-count {

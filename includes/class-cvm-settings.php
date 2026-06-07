@@ -93,8 +93,9 @@ class Coywolf_CVM_Settings {
 			'desc_weight'         => '400',
 			'like_icon'           => 'heart',
 			'like_color'          => '#0f0f0f',
-			'like_active_color'   => '',
 			'like_bg'             => '#f2f2f2',
+			'like_active_color'   => '',
+			'like_active_bg'      => '',
 			'meta_color'          => '#606060',
 			'meta_size'           => 0.9,
 		);
@@ -305,8 +306,9 @@ class Coywolf_CVM_Settings {
 
 		$clean['title_color'] = $this->sanitize_hex( isset( $input['title_color'] ) ? $input['title_color'] : '' );
 		$clean['like_color']        = $this->sanitize_hex( isset( $input['like_color'] ) ? $input['like_color'] : '' );
-		$clean['like_active_color'] = $this->sanitize_hex( isset( $input['like_active_color'] ) ? $input['like_active_color'] : '' );
 		$clean['like_bg']           = $this->sanitize_hex( isset( $input['like_bg'] ) ? $input['like_bg'] : '' );
+		$clean['like_active_color'] = $this->sanitize_hex( isset( $input['like_active_color'] ) ? $input['like_active_color'] : '' );
+		$clean['like_active_bg']    = $this->sanitize_hex( isset( $input['like_active_bg'] ) ? $input['like_active_bg'] : '' );
 		$clean['meta_color']  = $this->sanitize_hex( isset( $input['meta_color'] ) ? $input['meta_color'] : '' );
 
 		$clean['title_size'] = $this->sanitize_size( isset( $input['title_size'] ) ? $input['title_size'] : 0, $defaults['title_size'] );
@@ -624,9 +626,10 @@ class Coywolf_CVM_Settings {
 		echo '</select></label></p>';
 
 		$this->color_input( 'like_color', __( 'Unclicked color', 'coywolf-video-manager' ) );
+		$this->color_input( 'like_bg', __( 'Unclicked background color (empty = none)', 'coywolf-video-manager' ) );
 		$this->color_input( 'like_active_color', __( 'Clicked color', 'coywolf-video-manager' ) );
-		$this->color_input( 'like_bg', __( 'Background color (empty = none)', 'coywolf-video-manager' ) );
-		echo '<p class="description">' . esc_html__( 'Unclicked is the resting icon & text color. The clicked color shows on hover and fills the button when liked; leave it empty to keep the icon the same color when liked.', 'coywolf-video-manager' ) . '</p>';
+		$this->color_input( 'like_active_bg', __( 'Clicked background color', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'When unclicked, hovering previews the clicked colors; when clicked, hovering previews the unclicked colors. Leave the clicked colors empty to reuse the unclicked ones.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**
