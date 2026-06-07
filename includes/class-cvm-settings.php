@@ -85,15 +85,43 @@ class Coywolf_CVM_Settings {
 			'analytics_enabled'   => false,
 			'signed_urls_enabled' => false,
 			// Appearance.
+			'color_scheme'        => 'off',
 			'title_color'         => '',
-			'title_size'          => 0,
+			'title_size'          => 1.15,
 			'title_weight'        => '700',
 			'title_align'         => 'left',
 			'like_color'          => '#0f0f0f',
 			'like_bg'             => '#f2f2f2',
 			'meta_color'          => '#606060',
-			'meta_size'           => 0,
+			'meta_size'           => 0.9,
 		);
+	}
+
+	/**
+	 * Default font sizes (rem) for the appearance controls.
+	 *
+	 * @return array
+	 */
+	public static function size_defaults() {
+		return array(
+			'title_size' => 1.15,
+			'meta_size'  => 0.9,
+		);
+	}
+
+	/**
+	 * A font-size setting in rem, falling back to the plugin default.
+	 *
+	 * @param string $key title_size|meta_size.
+	 * @return float
+	 */
+	public function get_size( $key ) {
+		$defaults = self::size_defaults();
+		$value    = (float) $this->get( $key );
+		if ( $value <= 0 ) {
+			return isset( $defaults[ $key ] ) ? $defaults[ $key ] : 1.0;
+		}
+		return $value;
 	}
 
 	/**
@@ -204,6 +232,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'engagement', __( 'Engagement', 'coywolf-video-manager' ), array( $this, 'render_engagement_field' ), self::PAGE, 'coywolf_cvm_engagement' );
 
 		add_settings_section( 'coywolf_cvm_appearance', __( 'Appearance', 'coywolf-video-manager' ), array( $this, 'render_appearance_intro' ), self::PAGE );
+		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Video name', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
@@ -262,19 +291,38 @@ class Coywolf_CVM_Settings {
 		}
 
 		// Appearance.
+		$schemes              = array( 'off', 'auto', 'light', 'dark' );
+		$clean['color_scheme'] = ( isset( $input['color_scheme'] ) && in_array( $input['color_scheme'], $schemes, true ) ) ? $input['color_scheme'] : 'off';
+
 		$clean['title_color'] = $this->sanitize_hex( isset( $input['title_color'] ) ? $input['title_color'] : '' );
 		$clean['like_color']  = $this->sanitize_hex( isset( $input['like_color'] ) ? $input['like_color'] : '' );
 		$clean['like_bg']     = $this->sanitize_hex( isset( $input['like_bg'] ) ? $input['like_bg'] : '' );
 		$clean['meta_color']  = $this->sanitize_hex( isset( $input['meta_color'] ) ? $input['meta_color'] : '' );
-		$clean['title_size']  = isset( $input['title_size'] ) ? min( 96, absint( $input['title_size'] ) ) : 0;
-		$clean['meta_size']   = isset( $input['meta_size'] ) ? min( 96, absint( $input['meta_size'] ) ) : 0;
 
-		$weights               = array( '400', '500', '600', '700' );
+		$clean['title_size'] = $this->sanitize_size( isset( $input['title_size'] ) ? $input['title_size'] : 0, $defaults['title_size'] );
+		$clean['meta_size']  = $this->sanitize_size( isset( $input['meta_size'] ) ? $input['meta_size'] : 0, $defaults['meta_size'] );
+
+		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
 		$aligns                = array( 'left', 'center', 'right' );
 		$clean['title_align']  = ( isset( $input['title_align'] ) && in_array( $input['title_align'], $aligns, true ) ) ? $input['title_align'] : 'left';
 
 		return $clean;
+	}
+
+	/**
+	 * Sanitize a font size in rem (0.3–8); falls back to the default.
+	 *
+	 * @param mixed $value   Submitted value.
+	 * @param float $default Default rem.
+	 * @return float
+	 */
+	private function sanitize_size( $value, $default ) {
+		$value = (float) $value;
+		if ( $value <= 0 ) {
+			return (float) $default;
+		}
+		return max( 0.3, min( 8, round( $value, 2 ) ) );
 	}
 
 	/**
@@ -433,10 +481,43 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Appearance section intro.
+	 * Appearance section intro + live preview.
 	 */
 	public function render_appearance_intro() {
-		echo '<p>' . esc_html__( 'Style the video name, like button, and views/date text shown beneath each video. Leave a color empty to inherit your theme.', 'coywolf-video-manager' ) . '</p>';
+		echo '<p>' . esc_html__( 'Style the video name, like button, and views/date shown beneath each video. Leave a color empty to inherit your theme; changes preview live below.', 'coywolf-video-manager' ) . '</p>';
+
+		$scheme       = (string) $this->get( 'color_scheme' );
+		$scheme_class = ( 'off' !== $scheme ) ? ' coywolf-cvm-scheme-' . sanitize_html_class( $scheme ) : '';
+
+		$preview  = '<div class="coywolf-cvm-preview-stage" id="coywolf-cvm-preview-stage">';
+		$preview .= '<figure class="coywolf-cvm coywolf-cvm-preview' . $scheme_class . '" id="coywolf-cvm-preview">';
+		$preview .= '<figcaption class="coywolf-cvm-title">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</figcaption>';
+		$preview .= '<div class="coywolf-cvm-meta">';
+		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg() . '<span class="coywolf-cvm-like-count">175</span></button>';
+		$preview .= '<span class="coywolf-cvm-views">' . esc_html__( '23 views', 'coywolf-video-manager' ) . '</span>';
+		$preview .= '<span class="coywolf-cvm-date">' . esc_html__( '7 months ago', 'coywolf-video-manager' ) . '</span>';
+		$preview .= '</div></figure></div>';
+
+		echo $preview; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts + static SVG.
+	}
+
+	/**
+	 * Color scheme select.
+	 */
+	public function render_appearance_scheme_field() {
+		$value   = (string) $this->get( 'color_scheme' );
+		$schemes = array(
+			'off'   => __( 'Off — use the colors below', 'coywolf-video-manager' ),
+			'auto'  => __( 'Auto — follow the visitor’s system', 'coywolf-video-manager' ),
+			'light' => __( 'Always light', 'coywolf-video-manager' ),
+			'dark'  => __( 'Always dark', 'coywolf-video-manager' ),
+		);
+		echo '<select name="' . esc_attr( self::OPTION ) . '[color_scheme]" class="coywolf-cvm-scheme">';
+		foreach ( $schemes as $key => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $value, $key, false ), esc_html( $label ) );
+		}
+		echo '</select>';
+		echo '<p class="description">' . esc_html__( 'Light/dark adjust the like button and text colors for dark backgrounds. Any color you set below overrides the scheme.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**
@@ -444,18 +525,12 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_appearance_title_field() {
 		$this->color_input( 'title_color', __( 'Text color', 'coywolf-video-manager' ) );
-		$this->size_input( 'title_size', __( 'Font size', 'coywolf-video-manager' ), __( 'theme default', 'coywolf-video-manager' ) );
+		$this->size_input( 'title_size', __( 'Font size', 'coywolf-video-manager' ) );
 
-		$weight  = (string) $this->get( 'title_weight' );
-		$weights = array(
-			'400' => __( 'Normal', 'coywolf-video-manager' ),
-			'500' => __( 'Medium', 'coywolf-video-manager' ),
-			'600' => __( 'Semi-bold', 'coywolf-video-manager' ),
-			'700' => __( 'Bold', 'coywolf-video-manager' ),
-		);
-		echo '<p><label>' . esc_html__( 'Font weight', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_weight]">';
-		foreach ( $weights as $key => $label ) {
-			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $weight, $key, false ), esc_html( $label ) );
+		$weight = (string) $this->get( 'title_weight' );
+		echo '<p><label>' . esc_html__( 'Font weight', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_weight]" class="coywolf-cvm-field" data-key="title_weight">';
+		foreach ( array( '100', '200', '300', '400', '500', '600', '700', '800', '900' ) as $w ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $w ), selected( $weight, $w, false ), esc_html( $w ) );
 		}
 		echo '</select></label></p>';
 
@@ -465,7 +540,7 @@ class Coywolf_CVM_Settings {
 			'center' => __( 'Center', 'coywolf-video-manager' ),
 			'right'  => __( 'Right', 'coywolf-video-manager' ),
 		);
-		echo '<p><label>' . esc_html__( 'Alignment', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_align]">';
+		echo '<p><label>' . esc_html__( 'Alignment', 'coywolf-video-manager' ) . ' <select name="' . esc_attr( self::OPTION ) . '[title_align]" class="coywolf-cvm-field" data-key="title_align">';
 		foreach ( $aligns as $key => $label ) {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $align, $key, false ), esc_html( $label ) );
 		}
@@ -485,11 +560,11 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_appearance_meta_field() {
 		$this->color_input( 'meta_color', __( 'Text color', 'coywolf-video-manager' ) );
-		$this->size_input( 'meta_size', __( 'Font size', 'coywolf-video-manager' ), __( 'theme default', 'coywolf-video-manager' ) );
+		$this->size_input( 'meta_size', __( 'Font size', 'coywolf-video-manager' ) );
 	}
 
 	/**
-	 * Render a wp-color-picker text input bound to a setting.
+	 * Render a color field (a hidden value input + a jscolorpicker mount point).
 	 *
 	 * @param string $key   Setting key.
 	 * @param string $label Label.
@@ -497,7 +572,7 @@ class Coywolf_CVM_Settings {
 	private function color_input( $key, $label ) {
 		$value = (string) $this->get( $key );
 		printf(
-			'<p><label>%1$s<br /><input type="text" class="coywolf-cvm-color" name="%2$s[%3$s]" value="%4$s" data-default-color="%4$s" /></label></p>',
+			'<p class="coywolf-cvm-color-field" data-key="%3$s"><span class="coywolf-cvm-color-label">%1$s</span><br /><input type="hidden" class="coywolf-cvm-color-value" name="%2$s[%3$s]" value="%4$s" /><span class="coywolf-cvm-color-mount"></span></p>',
 			esc_html( $label ),
 			esc_attr( self::OPTION ),
 			esc_attr( $key ),
@@ -506,20 +581,18 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Render a px font-size number input (0 = inherit the theme).
+	 * Render a rem font-size number input (defaults to the plugin's own size).
 	 *
-	 * @param string $key       Setting key.
-	 * @param string $label     Label.
-	 * @param string $zero_hint What 0 means.
+	 * @param string $key   Setting key.
+	 * @param string $label Label.
 	 */
-	private function size_input( $key, $label, $zero_hint ) {
+	private function size_input( $key, $label ) {
 		printf(
-			'<p><label>%1$s <input type="number" min="0" max="96" name="%2$s[%3$s]" value="%4$s" class="small-text" /> px</label> <span class="description">%5$s</span></p>',
+			'<p><label>%1$s <input type="number" min="0.3" max="8" step="0.05" name="%2$s[%3$s]" value="%4$s" class="small-text coywolf-cvm-field" data-key="%3$s" /> rem</label></p>',
 			esc_html( $label ),
 			esc_attr( self::OPTION ),
 			esc_attr( $key ),
-			esc_attr( (int) $this->get( $key ) ),
-			esc_html( sprintf( /* translators: %s: e.g. "theme default". */ __( '(0 = %s)', 'coywolf-video-manager' ), $zero_hint ) )
+			esc_attr( $this->get_size( $key ) )
 		);
 	}
 

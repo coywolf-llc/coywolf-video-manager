@@ -64,6 +64,10 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 This plugin connects WordPress to Cloudflare Stream, a third-party service, on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. When the Cloudflare player is used, the front end loads the Stream player SDK from embed.cloudflarestream.com and streams video from cloudflarestream.com / videodelivery.net. The bundled Plyr (MIT), Video.js (Apache-2.0), and hls.js (Apache-2.0) players are served locally and make no third-party calls themselves. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
 
+== Styling with CSS ==
+
+Style the on-post UI from Videos > Settings > Appearance (with a live preview and a hex color picker), or override it in your theme's CSS — or both. The block exposes CSS custom properties on the .coywolf-cvm wrapper: --cvm-title-color (default inherit), --cvm-title-size (1.15rem), --cvm-title-weight (700), --cvm-title-align (left), --cvm-like-color (#0f0f0f), --cvm-like-bg (#f2f2f2), --cvm-meta-color (#606060), --cvm-meta-size (0.9rem). Example: .coywolf-cvm { --cvm-like-bg:#000; --cvm-like-color:#fff; } Useful classes: .coywolf-cvm, .coywolf-cvm-title, .coywolf-cvm-like, .coywolf-cvm-thumb, .coywolf-cvm-views, .coywolf-cvm-date. An optional light/dark scheme adds .coywolf-cvm-scheme-dark or .coywolf-cvm-scheme-auto. The plugin's CSS avoids !important so your theme can override it.
+
 == Screenshots ==
 
 1. The All Videos screen.
