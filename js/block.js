@@ -342,7 +342,20 @@
 							setAttributes( { primaryColor: v || '' } );
 						}
 					} )
-				)
+				),
+				el( RangeControl, {
+					label: __( 'Player corner radius (px)', 'coywolf-video-manager' ),
+					value: ( undefined === a.radius || null === a.radius ) ? ( defaults.radius || 0 ) : a.radius,
+					min: 0,
+					max: 48,
+					step: 1,
+					allowReset: true,
+					__nextHasNoMarginBottom: true,
+					help: ( undefined === a.radius || null === a.radius ) ? __( 'Inheriting the site default.', 'coywolf-video-manager' ) : __( 'Overriding the site default.', 'coywolf-video-manager' ),
+					onChange: function ( v ) {
+						setAttributes( { radius: ( undefined === v ) ? undefined : v } );
+					}
+				} )
 			)
 		);
 

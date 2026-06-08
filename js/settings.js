@@ -67,6 +67,14 @@
 		}
 	}
 
+	function applyRadius( preview ) {
+		var value = parseInt( fieldValue( 'radius' ), 10 );
+		if ( isNaN( value ) || value < 0 ) {
+			value = 0;
+		}
+		setVar( preview, '--cvm-radius', value + 'px' );
+	}
+
 	function applyChoice( preview, key, name ) {
 		var value = fieldValue( key );
 		if ( value && value !== '' + defaults[ key ] ) {
@@ -121,6 +129,7 @@
 		applyChoice( preview, 'title_weight', '--cvm-title-weight' );
 		applyChoice( preview, 'desc_weight', '--cvm-desc-weight' );
 		applyChoice( preview, 'align', '--cvm-align' );
+		applyRadius( preview );
 		applyIcon( preview );
 
 		// Show/hide the name, description, and their separator.

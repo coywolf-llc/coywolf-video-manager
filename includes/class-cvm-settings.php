@@ -115,6 +115,7 @@ class Coywolf_CVM_Settings {
 			'like_active_bg'      => '',
 			'meta_color'          => '#606060',
 			'meta_size'           => 0.9,
+			'radius'              => 0,
 		);
 	}
 
@@ -262,6 +263,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_align', __( 'Alignment', 'coywolf-video-manager' ), array( $this, 'render_appearance_align_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_radius', __( 'Player corner radius', 'coywolf-video-manager' ), array( $this, 'render_appearance_radius_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Name & description', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
@@ -331,6 +333,8 @@ class Coywolf_CVM_Settings {
 
 		$clean['title_size'] = $this->sanitize_size( isset( $input['title_size'] ) ? $input['title_size'] : 0, $defaults['title_size'] );
 		$clean['meta_size']  = $this->sanitize_size( isset( $input['meta_size'] ) ? $input['meta_size'] : 0, $defaults['meta_size'] );
+
+		$clean['radius'] = isset( $input['radius'] ) ? max( 0, min( 48, (int) $input['radius'] ) ) : 0;
 
 		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
@@ -515,6 +519,7 @@ class Coywolf_CVM_Settings {
 
 		$preview  = '<div class="coywolf-cvm-preview-stage" id="coywolf-cvm-preview-stage">';
 		$preview .= '<figure class="coywolf-cvm coywolf-cvm-preview' . $scheme_class . '" id="coywolf-cvm-preview">';
+		$preview .= '<div class="coywolf-cvm-frame coywolf-cvm-preview-frame"><span class="coywolf-cvm-preview-play" aria-hidden="true"></span></div>';
 		$preview .= '<figcaption class="coywolf-cvm-title"><strong class="coywolf-cvm-name">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</strong><span class="coywolf-cvm-sep"> — </span><span class="coywolf-cvm-desc">' . esc_html__( 'A short video description.', 'coywolf-video-manager' ) . '</span></figcaption>';
 		$preview .= '<div class="coywolf-cvm-meta">';
 		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg( $this->get( 'like_icon' ) ) . '<span class="coywolf-cvm-like-count">175</span></button>';
@@ -560,6 +565,19 @@ class Coywolf_CVM_Settings {
 		}
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Aligns the video name and the like / views / date row. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
+	 * Player corner radius (px).
+	 */
+	public function render_appearance_radius_field() {
+		printf(
+			'<p><label>%1$s <input type="number" min="0" max="48" step="1" name="%2$s[radius]" value="%3$d" class="small-text coywolf-cvm-field" data-key="radius" /> px</label></p>',
+			esc_html__( 'Corner radius', 'coywolf-video-manager' ),
+			esc_attr( self::OPTION ),
+			(int) $this->get( 'radius' )
+		);
+		echo '<p class="description">' . esc_html__( 'Rounds the corners of the video player. 0 = square corners. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**

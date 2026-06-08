@@ -207,6 +207,7 @@ class Coywolf_CVM_Admin {
 							'like_active_bg'    => $d['like_active_bg'],
 							'meta_color'   => $d['meta_color'],
 							'meta_size'    => $d['meta_size'],
+							'radius'       => $d['radius'],
 						),
 						'icons'    => array(
 							'heart'  => Coywolf_CVM_Block::thumb_svg( 'heart' ),
