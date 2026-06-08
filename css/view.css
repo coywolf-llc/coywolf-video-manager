@@ -27,6 +27,7 @@
 	--cvm-like-active-bg: var( --cvm-like-bg );
 	--cvm-meta-color: #606060;
 	--cvm-meta-size: 0.9rem;
+	--cvm-radius: 0;
 
 	margin: 0 0 1.5em;
 	padding: 0;
@@ -53,6 +54,13 @@
 .coywolf-cvm .coywolf-cvm-frame {
 	background: #000;
 	overflow: hidden;
+	border-radius: var( --cvm-radius );
+}
+
+/* Round the player itself too, so Safari clips the corners reliably. */
+.coywolf-cvm .coywolf-cvm-frame iframe,
+.coywolf-cvm .coywolf-cvm-frame .coywolf-cvm-poster {
+	border-radius: var( --cvm-radius );
 }
 
 .coywolf-cvm .coywolf-cvm-poster {

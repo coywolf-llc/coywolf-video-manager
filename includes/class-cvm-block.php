@@ -221,6 +221,11 @@ class Coywolf_CVM_Block {
 			$vars['--cvm-meta-size'] = $this->rem( $meta_size );
 		}
 
+		$radius = (int) $this->settings->get( 'radius' );
+		if ( $radius !== (int) $defaults['radius'] ) {
+			$vars['--cvm-radius'] = $radius . 'px';
+		}
+
 		if ( empty( $vars ) ) {
 			return '';
 		}
@@ -338,9 +343,16 @@ class Coywolf_CVM_Block {
 			'data-uid'  => $uid,
 			'data-mode' => $mode,
 		);
-		// Per-block alignment override (else the Settings default applies).
+		// Per-block overrides (else the Settings defaults apply).
+		$inline = '';
 		if ( isset( $attributes['contentAlign'] ) && in_array( $attributes['contentAlign'], array( 'left', 'center', 'right' ), true ) ) {
-			$attrs['style'] = '--cvm-align:' . $attributes['contentAlign'] . ';';
+			$inline .= '--cvm-align:' . $attributes['contentAlign'] . ';';
+		}
+		if ( isset( $attributes['radius'] ) && is_numeric( $attributes['radius'] ) ) {
+			$inline .= '--cvm-radius:' . max( 0, min( 48, (int) $attributes['radius'] ) ) . 'px;';
+		}
+		if ( '' !== $inline ) {
+			$attrs['style'] = $inline;
 		}
 
 		$wrapper = get_block_wrapper_attributes( $attrs );
