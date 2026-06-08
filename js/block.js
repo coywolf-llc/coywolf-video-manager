@@ -133,6 +133,8 @@
 				'div',
 				{ className: 'coywolf-cvm-picker-search' },
 				el( TextControl, {
+					label: __( 'Search videos', 'coywolf-video-manager' ),
+					hideLabelFromVision: true,
 					value: query,
 					placeholder: __( 'Search videos…', 'coywolf-video-manager' ),
 					onChange: setQuery,
