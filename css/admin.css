@@ -187,3 +187,60 @@
 	padding: 0.3em 0;
 	border-bottom: 1px solid #f0f0f1;
 }
+
+/* Documentation page (rendered from readme.md). */
+.coywolf-cvm-docs {
+	max-width: 50rem;
+}
+
+.coywolf-cvm-docs h2 {
+	margin-top: 1.6em;
+	padding-top: 1em;
+	border-top: 1px solid #dcdcde;
+}
+
+.coywolf-cvm-docs h3 {
+	margin-top: 1.3em;
+}
+
+.coywolf-cvm-docs p,
+.coywolf-cvm-docs li {
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.coywolf-cvm-docs li {
+	margin: 0.25em 0;
+}
+
+.coywolf-cvm-docs code {
+	padding: 0.1em 0.4em;
+	font-size: 0.92em;
+	background: #f0f0f1;
+	border-radius: 3px;
+}
+
+.coywolf-cvm-docs pre.coywolf-cvm-docs-code {
+	margin: 1em 0;
+	padding: 1em;
+	overflow: auto;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.coywolf-cvm-docs pre.coywolf-cvm-docs-code code {
+	padding: 0;
+	font-size: 13px;
+	background: none;
+}
+
+.coywolf-cvm-docs table.coywolf-cvm-docs-table {
+	margin: 1em 0;
+}
+
+.coywolf-cvm-docs table.coywolf-cvm-docs-table th,
+.coywolf-cvm-docs table.coywolf-cvm-docs-table td {
+	padding: 8px 10px;
+	vertical-align: top;
+}
