@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.25
+Stable tag: 1.0.26
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 4. Settings.
 
 == Changelog ==
+
+= 1.0.26 =
+* Front end: more space between the caption and the like/views/date row (#27).
 
 = 1.0.25 =
 * Upload: keep the entered video name instead of the file name (#26).
