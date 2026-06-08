@@ -111,6 +111,15 @@ class Coywolf_CVM_Admin {
 			array( $this, 'render_upload_page' )
 		);
 
+		$this->hooks['docs'] = add_submenu_page(
+			self::PAGE,
+			__( 'Documentation', 'coywolf-video-manager' ),
+			__( 'Documentation', 'coywolf-video-manager' ),
+			$cap,
+			'coywolf-video-manager-docs',
+			array( 'Coywolf_CVM_Docs', 'render_page' )
+		);
+
 		$this->hooks['settings'] = add_submenu_page(
 			self::PAGE,
 			__( 'Settings', 'coywolf-video-manager' ),

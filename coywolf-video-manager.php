@@ -50,6 +50,7 @@ require_once __DIR__ . '/includes/class-cvm-index.php';
 require_once __DIR__ . '/includes/class-cvm-settings.php';
 require_once __DIR__ . '/includes/class-cvm-rest.php';
 require_once __DIR__ . '/includes/class-cvm-block.php';
+require_once __DIR__ . '/includes/class-cvm-docs.php';
 require_once __DIR__ . '/includes/class-cvm-admin.php';
 require_once __DIR__ . '/includes/class-cvm-sitemap.php';
 require_once __DIR__ . '/includes/class-coywolf-video-manager.php';
