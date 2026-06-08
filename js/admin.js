@@ -261,6 +261,25 @@
 					closeModal();
 				}
 			} );
+			// Keep Tab focus inside the open dialog (focus trap).
+			modal.addEventListener( 'keydown', function ( e ) {
+				if ( 'Tab' !== e.key || modal.hidden ) {
+					return;
+				}
+				var focusable = modal.querySelectorAll( 'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])' );
+				if ( ! focusable.length ) {
+					return;
+				}
+				var first = focusable[ 0 ];
+				var last = focusable[ focusable.length - 1 ];
+				if ( e.shiftKey && document.activeElement === first ) {
+					e.preventDefault();
+					last.focus();
+				} else if ( ! e.shiftKey && document.activeElement === last ) {
+					e.preventDefault();
+					first.focus();
+				}
+			} );
 
 			if ( confirmBtn ) {
 				confirmBtn.addEventListener( 'click', function () {

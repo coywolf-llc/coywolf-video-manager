@@ -509,7 +509,7 @@ class Coywolf_CVM_Admin {
 							<label><input type="radio" name="cvm-poster-mode" value="image" <?php checked( 'image' === $poster_mode ); ?> /> <?php esc_html_e( 'Use a custom image', 'coywolf-video-manager' ); ?></label>
 						</p>
 						<div class="cvm-poster-timestamp"<?php echo 'image' === $poster_mode ? ' style="display:none;"' : ''; ?>>
-							<input type="range" id="cvm-poster-time" min="0" max="<?php echo esc_attr( $duration > 0 ? (int) ceil( $duration ) : 600 ); ?>" value="<?php echo esc_attr( $poster_time ); ?>" />
+							<input type="range" id="cvm-poster-time" aria-label="<?php esc_attr_e( 'Poster timestamp (seconds)', 'coywolf-video-manager' ); ?>" min="0" max="<?php echo esc_attr( $duration > 0 ? (int) ceil( $duration ) : 600 ); ?>" value="<?php echo esc_attr( $poster_time ); ?>" />
 							<output id="cvm-poster-time-out"><?php echo esc_html( $poster_time ); ?>s</output>
 						</div>
 						<div class="cvm-poster-image"<?php echo 'image' !== $poster_mode ? ' style="display:none;"' : ''; ?>>
@@ -536,7 +536,7 @@ class Coywolf_CVM_Admin {
 						<span class="coywolf-cvm-copy-id" data-id="<?php echo esc_attr( $uid ); ?>" role="button" tabindex="0" title="<?php esc_attr_e( 'Click to copy', 'coywolf-video-manager' ); ?>">
 							<code><?php echo esc_html( $uid ); ?></code>
 							<span class="dashicons dashicons-clipboard" aria-hidden="true"></span>
-							<span class="coywolf-cvm-copy-hint"><?php esc_html_e( 'click to copy', 'coywolf-video-manager' ); ?></span>
+							<span class="coywolf-cvm-copy-hint" aria-live="polite"><?php esc_html_e( 'click to copy', 'coywolf-video-manager' ); ?></span>
 						</span>
 					</td>
 				</tr>
