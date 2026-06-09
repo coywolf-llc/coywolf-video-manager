@@ -157,6 +157,11 @@ class Coywolf_CVM_Sitemap {
 		$stats     = Coywolf_Video_Manager::instance()->stats();
 		$durations = $this->duration_map();
 
+		// Upload date source: the post/page publish date when enabled, otherwise
+		// each video's Cloudflare upload timestamp.
+		$date_from_post = (bool) $this->settings->get( 'date_from_post' );
+		$created_map    = $date_from_post ? array() : $this->created_map();
+
 		// Batch the per-video data up front so the loop issues no per-video
 		// queries: one stats query for all UIDs, and one read of the descriptions.
 		$all_uids = array();
@@ -181,8 +186,7 @@ class Coywolf_CVM_Sitemap {
 			}
 			$title       = get_the_title( $post_id );
 			$description = $this->post_description( $post_id, $title );
-			// Same timestamp the block schema uses for uploadDate.
-			$published = get_the_date( 'c', $post_id );
+			$post_date   = get_the_date( 'c', $post_id );
 
 			$xml .= "\t<url>\n";
 			$xml .= "\t\t<loc>" . esc_url( $permalink ) . "</loc>\n";
@@ -192,6 +196,9 @@ class Coywolf_CVM_Sitemap {
 				$vid_desc = isset( $descriptions[ $uid ] ) ? (string) $descriptions[ $uid ] : '';
 				$desc     = '' !== $vid_desc ? $vid_desc : $description;
 				$duration = isset( $durations[ $uid ] ) ? (int) $durations[ $uid ] : 0;
+				$published = $date_from_post
+					? $post_date
+					: ( ! empty( $created_map[ $uid ] ) ? (string) $created_map[ $uid ] : $post_date );
 
 				// Element order follows the sitemap-video 1.1 schema sequence.
 				$xml .= "\t\t<video:video>\n";
@@ -203,9 +210,7 @@ class Coywolf_CVM_Sitemap {
 				if ( $duration > 0 && $duration <= 28800 ) {
 					$xml .= "\t\t\t<video:duration>" . $duration . "</video:duration>\n";
 				}
-				if ( $counts['plays'] > 0 ) {
-					$xml .= "\t\t\t<video:view_count>" . (int) $counts['plays'] . "</video:view_count>\n";
-				}
+				$xml .= "\t\t\t<video:view_count>" . (int) $counts['plays'] . "</video:view_count>\n";
 				if ( $published ) {
 					$xml .= "\t\t\t<video:publication_date>" . esc_xml( $published ) . "</video:publication_date>\n";
 				}
@@ -235,6 +240,26 @@ class Coywolf_CVM_Sitemap {
 		foreach ( $videos as $video ) {
 			if ( ! empty( $video['uid'] ) && isset( $video['duration'] ) ) {
 				$map[ (string) $video['uid'] ] = (int) round( (float) $video['duration'] );
+			}
+		}
+		return $map;
+	}
+
+	/**
+	 * Map of video UID => Cloudflare upload date (ISO-8601), from the cached
+	 * library. Used for publication_date when the publish-date option is off.
+	 *
+	 * @return array
+	 */
+	private function created_map() {
+		$map    = array();
+		$videos = $this->cloudflare->list_videos();
+		if ( is_wp_error( $videos ) || ! is_array( $videos ) ) {
+			return $map;
+		}
+		foreach ( $videos as $video ) {
+			if ( ! empty( $video['uid'] ) && ! empty( $video['created'] ) ) {
+				$map[ (string) $video['uid'] ] = (string) $video['created'];
 			}
 		}
 		return $map;

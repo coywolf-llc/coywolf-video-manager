@@ -59,9 +59,10 @@ class Coywolf_CVM_Block {
 		'mute'          => 'mute',
 		'lazy'          => 'lazy',
 		'showPlays'       => 'plays_enabled',
-		'playsInSchema'   => 'plays_in_schema',
 		'enableLikes'     => 'likes_enabled',
 		'showLikeCount'   => 'likes_show_count',
+		'showDate'        => 'show_date',
+		'dateFromPost'    => 'date_from_post',
 		'showName'        => 'show_title',
 		'showDescription' => 'show_desc',
 	);
@@ -211,6 +212,10 @@ class Coywolf_CVM_Block {
 		if ( $align !== (string) $defaults['align'] ) {
 			$vars['--cvm-align'] = $align;
 		}
+		$meta_align = (string) $this->settings->get( 'meta_align' );
+		if ( $meta_align !== (string) $defaults['meta_align'] ) {
+			$vars['--cvm-meta-align'] = $meta_align;
+		}
 
 		$title_size = $this->settings->get_size( 'title_size' );
 		if ( abs( $title_size - (float) $defaults['title_size'] ) > 0.001 ) {
@@ -290,6 +295,17 @@ class Coywolf_CVM_Block {
 		}
 		$pct = round( $aspect * 100, 4 );
 
+		// Effective "upload date": the post/page publish date when date_from_post
+		// is on, otherwise Cloudflare's upload timestamp. The same date drives the
+		// meta row (when shown), the schema uploadDate, and the sitemap.
+		if ( ! empty( $cfg['dateFromPost'] ) ) {
+			$upload_ts  = (int) get_post_time( 'U', true );
+			$upload_iso = get_the_date( 'c' );
+		} else {
+			$upload_ts  = '' !== $uploaded ? (int) strtotime( $uploaded ) : 0;
+			$upload_iso = '' !== $uploaded ? $uploaded : get_the_date( 'c' );
+		}
+
 		$playback_id = $uid;
 		$poster      = $this->poster_url( $attributes, $playback_id, $uid );
 
@@ -348,6 +364,9 @@ class Coywolf_CVM_Block {
 		if ( isset( $attributes['contentAlign'] ) && in_array( $attributes['contentAlign'], array( 'left', 'center', 'right' ), true ) ) {
 			$inline .= '--cvm-align:' . $attributes['contentAlign'] . ';';
 		}
+		if ( isset( $attributes['metaAlign'] ) && in_array( $attributes['metaAlign'], array( 'left', 'center', 'right' ), true ) ) {
+			$inline .= '--cvm-meta-align:' . $attributes['metaAlign'] . ';';
+		}
 		if ( isset( $attributes['radius'] ) && is_numeric( $attributes['radius'] ) ) {
 			$inline .= '--cvm-radius:' . max( 0, min( 48, (int) $attributes['radius'] ) ) . 'px;';
 		}
@@ -362,9 +381,9 @@ class Coywolf_CVM_Block {
 		<figure <?php echo $wrapper; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			<?php echo $player; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php echo $this->caption_markup( $name, self::video_description( $uid ), $cfg ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			<?php echo $this->meta_markup( $uid, $cfg, $counts, $uploaded ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $this->meta_markup( $uid, $cfg, $counts, $upload_ts ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</figure>
-		<?php echo $this->schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		<?php echo $this->schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url, $upload_iso ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -435,11 +454,11 @@ class Coywolf_CVM_Block {
 	 *
 	 * @param string $uid      Video UID.
 	 * @param array  $cfg      Resolved config.
-	 * @param array  $counts   { plays, likes }.
-	 * @param string $uploaded Cloudflare created timestamp (ISO-8601).
+	 * @param array  $counts    { plays, likes }.
+	 * @param int    $upload_ts Effective upload timestamp (Unix), or 0 if unknown.
 	 * @return string
 	 */
-	private function meta_markup( $uid, $cfg, $counts, $uploaded ) {
+	private function meta_markup( $uid, $cfg, $counts, $upload_ts ) {
 		$like  = $cfg['enableLikes'] ? $this->like_button( $uid, (int) $counts['likes'], $cfg['showLikeCount'], $cfg['like_icon'] ) : '';
 		$views = '';
 		$date  = '';
@@ -457,20 +476,17 @@ class Coywolf_CVM_Block {
 			$views = '<span class="' . esc_attr( $views_class ) . '">' . esc_html( $views_text ) . '</span>';
 		}
 
-		if ( '' !== $uploaded ) {
-			$ts = strtotime( $uploaded );
-			if ( $ts ) {
-				$date = sprintf(
-					'<span class="coywolf-cvm-date">%s</span>',
-					esc_html(
-						sprintf(
-							/* translators: %s: human-readable time difference, e.g. "7 months". */
-							__( '%s ago', 'coywolf-video-manager' ),
-							human_time_diff( $ts )
-						)
+		if ( ! empty( $cfg['showDate'] ) && $upload_ts > 0 ) {
+			$date = sprintf(
+				'<span class="coywolf-cvm-date">%s</span>',
+				esc_html(
+					sprintf(
+						/* translators: %s: human-readable time difference, e.g. "7 months". */
+						__( '%s ago', 'coywolf-video-manager' ),
+						human_time_diff( $upload_ts )
 					)
-				);
-			}
+				)
+			);
 		}
 
 		if ( '' === $like && '' === $views && '' === $date ) {
@@ -529,9 +545,11 @@ class Coywolf_CVM_Block {
 	 * @param array  $cfg        Resolved config.
 	 * @param array  $counts     { plays, likes }.
 	 * @param string $iframe_url Embed URL.
+	 * @param string $upload_iso Upload date (ISO-8601): the post date when the
+	 *                           publish-date option is on, else Cloudflare's date.
 	 * @return string
 	 */
-	private function schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url ) {
+	private function schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url, $upload_iso ) {
 		$thumbnail = '' !== $poster
 			? $poster
 			: $this->cloudflare->thumbnail_url( $uid, array( 'width' => self::POSTER_WIDTH ) );
@@ -542,7 +560,7 @@ class Coywolf_CVM_Block {
 			'name'         => $name,
 			'description'  => $this->description( $uid, $name ),
 			'thumbnailUrl' => array( $thumbnail ),
-			'uploadDate'   => get_the_date( 'c' ),
+			'uploadDate'   => '' !== $upload_iso ? $upload_iso : get_the_date( 'c' ),
 			'embedUrl'     => $iframe_url,
 			'contentUrl'   => $this->cloudflare->watch_url( $uid ),
 		);
@@ -550,14 +568,15 @@ class Coywolf_CVM_Block {
 			$schema['duration'] = $this->iso8601_duration( $duration );
 		}
 
-		$interaction = array();
-		if ( $cfg['showPlays'] && $cfg['playsInSchema'] ) {
-			$interaction[] = array(
+		// The view count is always reported in the schema; the like count is
+		// included when the like button is enabled.
+		$interaction = array(
+			array(
 				'@type'                => 'InteractionCounter',
 				'interactionType'      => array( '@type' => 'WatchAction' ),
 				'userInteractionCount' => (int) $counts['plays'],
-			);
-		}
+			),
+		);
 		if ( $cfg['enableLikes'] ) {
 			$interaction[] = array(
 				'@type'                => 'InteractionCounter',
@@ -565,9 +584,7 @@ class Coywolf_CVM_Block {
 				'userInteractionCount' => (int) $counts['likes'],
 			);
 		}
-		if ( ! empty( $interaction ) ) {
-			$schema['interactionStatistic'] = $interaction;
-		}
+		$schema['interactionStatistic'] = $interaction;
 
 		// JSON_HEX_TAG escapes < and > so a "</script>" in any value (e.g. a video
 		// name pulled from Cloudflare) can't break out of the JSON-LD script tag.

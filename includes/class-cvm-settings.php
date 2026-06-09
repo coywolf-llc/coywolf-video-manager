@@ -95,13 +95,15 @@ class Coywolf_CVM_Settings {
 			'mute'                => false,
 			'lazy'                => true,
 			'plays_enabled'       => true,
-			'plays_in_schema'     => true,
 			'likes_enabled'       => true,
 			'likes_show_count'    => true,
+			'show_date'           => true,
+			'date_from_post'      => false,
 			'sitemap_enabled'     => true,
 			// Appearance.
 			'color_scheme'        => 'off',
 			'align'               => 'left',
+			'meta_align'          => 'left',
 			'title_color'         => '',
 			'show_title'          => true,
 			'show_desc'           => true,
@@ -316,7 +318,7 @@ class Coywolf_CVM_Settings {
 		$preloads         = array( 'none', 'metadata', 'auto' );
 		$clean['preload'] = ( isset( $input['preload'] ) && in_array( $input['preload'], $preloads, true ) ) ? $input['preload'] : $defaults['preload'];
 
-		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'plays_in_schema', 'likes_enabled', 'likes_show_count', 'sitemap_enabled', 'show_title', 'show_desc' ) as $flag ) {
+		foreach ( array( 'controls', 'autoplay', 'loop', 'mute', 'lazy', 'plays_enabled', 'likes_enabled', 'likes_show_count', 'show_date', 'date_from_post', 'sitemap_enabled', 'show_title', 'show_desc' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
@@ -341,6 +343,7 @@ class Coywolf_CVM_Settings {
 		$clean['desc_weight']  = ( isset( $input['desc_weight'] ) && in_array( (string) $input['desc_weight'], $weights, true ) ) ? (string) $input['desc_weight'] : '400';
 		$aligns                = array( 'left', 'center', 'right' );
 		$clean['align']        = ( isset( $input['align'] ) && in_array( $input['align'], $aligns, true ) ) ? $input['align'] : 'left';
+		$clean['meta_align']   = ( isset( $input['meta_align'] ) && in_array( $input['meta_align'], $aligns, true ) ) ? $input['meta_align'] : 'left';
 		$icons                 = array( 'heart', 'thumbs', 'star' );
 		$clean['like_icon']    = ( isset( $input['like_icon'] ) && in_array( $input['like_icon'], $icons, true ) ) ? $input['like_icon'] : 'heart';
 
@@ -502,9 +505,11 @@ class Coywolf_CVM_Settings {
 	 */
 	public function render_engagement_field() {
 		$this->checkbox( 'plays_enabled', __( 'Show the number of views', 'coywolf-video-manager' ) );
-		$this->checkbox( 'plays_in_schema', __( 'Include view count in VideoObject schema', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_enabled', __( 'Show a like button', 'coywolf-video-manager' ) );
 		$this->checkbox( 'likes_show_count', __( 'Show the number of likes', 'coywolf-video-manager' ) );
+		$this->checkbox( 'show_date', __( 'Show the date the video was uploaded', 'coywolf-video-manager' ) );
+		$this->checkbox( 'date_from_post', __( 'Use the post or page publish date for the video upload date', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'The view count and upload date are always included in the video schema and XML sitemap, even when hidden here. With the publish-date option on, the post or page date is used as the upload date everywhere — the row beneath the video, the schema, and the sitemap.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**
@@ -553,18 +558,29 @@ class Coywolf_CVM_Settings {
 	 * Alignment (applies to the video name and the views/likes row).
 	 */
 	public function render_appearance_align_field() {
-		$align  = (string) $this->get( 'align' );
+		$this->align_select( 'align', __( 'Name & description', 'coywolf-video-manager' ) );
+		$this->align_select( 'meta_align', __( 'Like / views / date row', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'Align the name & description and the like / views / date row independently. Both can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+	}
+
+	/**
+	 * Render a left/center/right alignment select bound to the OPTION array.
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $label Label.
+	 */
+	private function align_select( $key, $label ) {
+		$value  = (string) $this->get( $key );
 		$aligns = array(
 			'left'   => __( 'Left', 'coywolf-video-manager' ),
 			'center' => __( 'Center', 'coywolf-video-manager' ),
 			'right'  => __( 'Right', 'coywolf-video-manager' ),
 		);
-		echo '<select name="' . esc_attr( self::OPTION ) . '[align]" class="coywolf-cvm-field" data-key="align">';
-		foreach ( $aligns as $key => $label ) {
-			printf( '<option value="%s"%s>%s</option>', esc_attr( $key ), selected( $align, $key, false ), esc_html( $label ) );
+		echo '<p><label>' . esc_html( $label ) . ' <select name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" class="coywolf-cvm-field" data-key="' . esc_attr( $key ) . '">';
+		foreach ( $aligns as $k => $l ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $k ), selected( $value, $k, false ), esc_html( $l ) );
 		}
-		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'Aligns the video name and the like / views / date row. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+		echo '</select></label></p>';
 	}
 
 	/**
