@@ -98,7 +98,7 @@ class Coywolf_CVM_Settings {
 			'likes_enabled'       => true,
 			'likes_show_count'    => true,
 			'show_date'           => true,
-			'date_from_post'      => false,
+			'date_from_post'      => true,
 			'sitemap_enabled'     => true,
 			// Appearance.
 			'color_scheme'        => 'off',
