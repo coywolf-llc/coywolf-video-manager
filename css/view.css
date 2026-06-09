@@ -21,6 +21,7 @@
 	--cvm-title-weight: 700;
 	--cvm-desc-weight: 400;
 	--cvm-align: left;
+	--cvm-meta-align: left;
 	--cvm-like-color: #0f0f0f;
 	--cvm-like-bg: #f2f2f2;
 	--cvm-like-active: var( --cvm-like-color );
@@ -94,20 +95,22 @@
 	font-weight: var( --cvm-desc-weight );
 }
 
-/* Like / views / date row. */
+/* Like / views / date row. Uses the system sans-serif UI font, and its own
+   alignment (independent of the figcaption). */
 .coywolf-cvm .coywolf-cvm-meta {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: var( --cvm-align );
+	justify-content: var( --cvm-meta-align );
 	gap: 0.6em 1em;
 	margin: 0;
 	padding: 0;
 	list-style: none;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	font-size: var( --cvm-meta-size );
 	line-height: 1.4;
 	color: var( --cvm-meta-color );
-	text-align: var( --cvm-align );
+	text-align: var( --cvm-meta-align );
 }
 
 /* Like button — reset theme <button> styling, then make it a YouTube pill. */

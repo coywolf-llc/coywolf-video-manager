@@ -200,6 +200,7 @@ class Coywolf_CVM_Admin {
 							'title_weight' => $d['title_weight'],
 							'desc_weight'  => $d['desc_weight'],
 							'align'        => $d['align'],
+							'meta_align'   => $d['meta_align'],
 							'like_icon'    => $d['like_icon'],
 							'like_color'        => $d['like_color'],
 							'like_bg'           => $d['like_bg'],

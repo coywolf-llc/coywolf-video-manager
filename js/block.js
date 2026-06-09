@@ -46,9 +46,10 @@
 		mute: 'mute',
 		lazy: 'lazy',
 		showPlays: 'plays_enabled',
-		playsInSchema: 'plays_in_schema',
 		enableLikes: 'likes_enabled',
 		showLikeCount: 'likes_show_count',
+		showDate: 'show_date',
+		dateFromPost: 'date_from_post',
 		showName: 'show_title',
 		showDescription: 'show_desc'
 	};
@@ -315,7 +316,7 @@
 				inheritToggle( 'showName', __( 'Show video name', 'coywolf-video-manager' ) ),
 				inheritToggle( 'showDescription', __( 'Show video description', 'coywolf-video-manager' ) ),
 				el( SelectControl, {
-					label: __( 'Alignment', 'coywolf-video-manager' ),
+					label: __( 'Name & description alignment', 'coywolf-video-manager' ),
 					value: a.contentAlign || '',
 					options: [
 						{ label: __( 'Inherit', 'coywolf-video-manager' ) + ' (' + ( defaults.align || 'left' ) + ')', value: '' },
@@ -328,10 +329,25 @@
 						setAttributes( { contentAlign: v || undefined } );
 					}
 				} ),
+				el( SelectControl, {
+					label: __( 'Like / views / date alignment', 'coywolf-video-manager' ),
+					value: a.metaAlign || '',
+					options: [
+						{ label: __( 'Inherit', 'coywolf-video-manager' ) + ' (' + ( defaults.meta_align || 'left' ) + ')', value: '' },
+						{ label: __( 'Left', 'coywolf-video-manager' ), value: 'left' },
+						{ label: __( 'Center', 'coywolf-video-manager' ), value: 'center' },
+						{ label: __( 'Right', 'coywolf-video-manager' ), value: 'right' }
+					],
+					__nextHasNoMarginBottom: true,
+					onChange: function ( v ) {
+						setAttributes( { metaAlign: v || undefined } );
+					}
+				} ),
 				inheritToggle( 'showPlays', __( 'Show view count', 'coywolf-video-manager' ) ),
-				inheritToggle( 'playsInSchema', __( 'Include views in schema', 'coywolf-video-manager' ) ),
 				inheritToggle( 'enableLikes', __( 'Show like button', 'coywolf-video-manager' ) ),
 				inheritToggle( 'showLikeCount', __( 'Show like count', 'coywolf-video-manager' ) ),
+				inheritToggle( 'showDate', __( 'Show upload date', 'coywolf-video-manager' ) ),
+				inheritToggle( 'dateFromPost', __( 'Use the post/page date as the upload date', 'coywolf-video-manager' ) ),
 				el(
 					BaseControl,
 					{ label: __( 'Play button color', 'coywolf-video-manager' ), __nextHasNoMarginBottom: true },

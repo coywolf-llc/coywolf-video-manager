@@ -129,6 +129,7 @@
 		applyChoice( preview, 'title_weight', '--cvm-title-weight' );
 		applyChoice( preview, 'desc_weight', '--cvm-desc-weight' );
 		applyChoice( preview, 'align', '--cvm-align' );
+		applyChoice( preview, 'meta_align', '--cvm-meta-align' );
 		applyRadius( preview );
 		applyIcon( preview );
 
