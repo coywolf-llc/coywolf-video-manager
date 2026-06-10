@@ -4,7 +4,7 @@
 ( function ( wp ) {
 	'use strict';
 
-	if ( ! wp || ! wp.blocks ) {
+	if ( ! wp || ! wp.blocks || ! wp.data ) {
 		return;
 	}
 
@@ -12,8 +12,12 @@
 	var Fragment = wp.element.Fragment;
 	var useState = wp.element.useState;
 	var useEffect = wp.element.useEffect;
+	var useRef = wp.element.useRef;
 	var __ = wp.i18n.__;
 	var apiFetch = wp.apiFetch;
+	var useSelect = wp.data.useSelect;
+	var select = wp.data.select;
+	var dispatch = wp.data.dispatch;
 	var blockEditor = wp.blockEditor;
 	var components = wp.components;
 	var ServerSideRender = wp.serverSideRender;
@@ -28,6 +32,7 @@
 	var SelectControl = components.SelectControl;
 	var RangeControl = components.RangeControl;
 	var TextControl = components.TextControl;
+	var TextareaControl = components.TextareaControl;
 	var ColorPalette = components.ColorPalette;
 	var BaseControl = components.BaseControl;
 	var Button = components.Button;
@@ -56,6 +61,16 @@
 
 	function defaultBool( attr ) {
 		return !! defaults[ defaultKey[ attr ] ];
+	}
+
+	function snackbar( status, message, uid ) {
+		var notices = dispatch( 'core/notices' );
+		if ( notices && notices.createNotice ) {
+			notices.createNotice( status, message, {
+				type: 'snackbar',
+				id: 'coywolf-cvm-video-save-' + uid
+			} );
+		}
 	}
 
 	/**
@@ -157,6 +172,85 @@
 		var pickerOpen = pickerState[ 0 ];
 		var setPickerOpen = pickerState[ 1 ];
 
+		// The video's canonical name/description (what the Edit Video page
+		// shows) and the user's staged edits (null = untouched). Staged edits
+		// are pushed to the video only after the post itself is saved.
+		var videoMetaState = useState( { name: null, description: null } );
+		var videoMeta = videoMetaState[ 0 ];
+		var setVideoMeta = videoMetaState[ 1 ];
+		var stagedState = useState( { name: null, description: null } );
+		var staged = stagedState[ 0 ];
+		var setStaged = stagedState[ 1 ];
+		var wasSavingPost = useRef( false );
+
+		var isSavingPost = useSelect( function ( sel ) {
+			var editor = sel( 'core/editor' );
+			return editor ? ( editor.isSavingPost() && ! editor.isAutosavingPost() ) : false;
+		}, [] );
+
+		// Load the canonical name/description when the selected video changes.
+		useEffect( function () {
+			setVideoMeta( { name: null, description: null } );
+			setStaged( { name: null, description: null } );
+			if ( ! a.videoId ) {
+				return undefined;
+			}
+			var alive = true;
+			apiFetch( { path: '/coywolf-cvm/v1/videos/' + encodeURIComponent( a.videoId ) } )
+				.then( function ( res ) {
+					if ( alive && res ) {
+						setVideoMeta( {
+							name: 'string' === typeof res.name ? res.name : '',
+							description: 'string' === typeof res.description ? res.description : ''
+						} );
+					}
+				} )
+				.catch( function () {} );
+			return function () {
+				alive = false;
+			};
+		}, [ a.videoId ] );
+
+		// After the post finishes saving (autosaves excluded), push any staged
+		// name/description edits to the video — the same update the Edit Video
+		// page performs. Failures keep the edits staged so re-saving retries.
+		useEffect( function () {
+			var finished = wasSavingPost.current && ! isSavingPost;
+			wasSavingPost.current = isSavingPost;
+			if ( ! finished || ! a.videoId ) {
+				return;
+			}
+			var editor = select( 'core/editor' );
+			if ( editor && 'function' === typeof editor.didPostSaveRequestSucceed && ! editor.didPostSaveRequestSucceed() ) {
+				return;
+			}
+			var data = {};
+			if ( null !== staged.name && staged.name !== videoMeta.name ) {
+				data.name = staged.name;
+			}
+			if ( null !== staged.description && staged.description !== videoMeta.description ) {
+				data.description = staged.description;
+			}
+			if ( ! Object.keys( data ).length ) {
+				return;
+			}
+			var uid = a.videoId;
+			apiFetch( {
+				path: '/coywolf-cvm/v1/videos/' + encodeURIComponent( uid ),
+				method: 'POST',
+				data: data
+			} ).then( function () {
+				setVideoMeta( {
+					name: undefined !== data.name ? data.name : videoMeta.name,
+					description: undefined !== data.description ? data.description : videoMeta.description
+				} );
+				setStaged( { name: null, description: null } );
+				snackbar( 'success', __( 'Video updated.', 'coywolf-video-manager' ), uid );
+			} ).catch( function ( err ) {
+				snackbar( 'error', ( err && err.message ) ? err.message : __( 'Updating the video failed.', 'coywolf-video-manager' ), uid );
+			} );
+		}, [ isSavingPost ] );
+
 		function inheritToggle( attr, label ) {
 			var def = defaultBool( attr );
 			var isInheriting = ( undefined === a[ attr ] || null === a[ attr ] );
@@ -176,6 +270,11 @@
 		}
 
 		var durationMax = Math.max( 1, Math.round( a.duration || 0 ) );
+
+		// Staged edit if any, else the canonical value once loaded, else the
+		// stored block name while the lookup is still in flight.
+		var videoNameValue = null !== staged.name ? staged.name : ( null !== videoMeta.name ? videoMeta.name : ( a.videoName || '' ) );
+		var videoDescValue = null !== staged.description ? staged.description : ( null !== videoMeta.description ? videoMeta.description : '' );
 
 		var inspector = el(
 			InspectorControls,
@@ -313,6 +412,45 @@
 			el(
 				PanelBody,
 				{ title: __( 'Appearance', 'coywolf-video-manager' ), initialOpen: false },
+				a.videoId
+					? el(
+						'div',
+						{ className: 'coywolf-cvm-video-fields' },
+						el( TextareaControl, {
+							label: __( 'Video name', 'coywolf-video-manager' ),
+							value: videoNameValue,
+							rows: 2,
+							__nextHasNoMarginBottom: true,
+							onChange: function ( v ) {
+								setStaged( function ( prev ) {
+									return { name: v, description: prev.description };
+								} );
+								// Keep the block's stored name (preview +
+								// front-end fallback) in sync.
+								setAttributes( { videoName: v } );
+							}
+						} ),
+						el( TextareaControl, {
+							label: __( 'Video description', 'coywolf-video-manager' ),
+							value: videoDescValue,
+							rows: 4,
+							__nextHasNoMarginBottom: true,
+							onChange: function ( v ) {
+								setStaged( function ( prev ) {
+									return { name: prev.name, description: v };
+								} );
+								// Stored on the block too, so the edit marks
+								// the post as needing a save.
+								setAttributes( { videoDescription: v } );
+							}
+						} ),
+						el(
+							'p',
+							{ className: 'components-base-control__help' },
+							__( 'Changes are saved to the video when the post is saved.', 'coywolf-video-manager' )
+						)
+					)
+					: null,
 				inheritToggle( 'showName', __( 'Show video name', 'coywolf-video-manager' ) ),
 				inheritToggle( 'showDescription', __( 'Show video description', 'coywolf-video-manager' ) ),
 				el( SelectControl, {

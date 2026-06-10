@@ -109,7 +109,7 @@ class Coywolf_CVM_Block {
 		wp_register_script(
 			'coywolf-cvm-block',
 			COYWOLF_CVM_URL . 'js/block.js',
-			array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n', 'wp-api-fetch', 'wp-server-side-render' ),
+			array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n', 'wp-api-fetch', 'wp-server-side-render', 'wp-data' ),
 			Coywolf_Video_Manager::VERSION,
 			true
 		);
