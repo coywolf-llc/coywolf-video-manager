@@ -566,9 +566,12 @@ class Coywolf_CVM_REST {
 	 * @return array
 	 */
 	private function normalize_video( $video ) {
+		$uid = isset( $video['uid'] ) ? (string) $video['uid'] : '';
 		return array(
-			'uid'                   => isset( $video['uid'] ) ? (string) $video['uid'] : '',
+			'uid'                   => $uid,
 			'name'                  => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
+			// Not a Cloudflare field — the local description (Edit Video page).
+			'description'           => Coywolf_CVM_Block::video_description( $uid ),
 			'created'               => isset( $video['created'] ) ? (string) $video['created'] : '',
 			'duration'              => isset( $video['duration'] ) ? (float) $video['duration'] : 0,
 			'ready'                 => ! empty( $video['readyToStream'] ),

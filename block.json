@@ -16,6 +16,7 @@
 	"attributes": {
 		"videoId": { "type": "string", "default": "" },
 		"videoName": { "type": "string", "default": "" },
+		"videoDescription": { "type": "string", "default": "" },
 		"duration": { "type": "number", "default": 0 },
 		"aspectRatio": { "type": "number", "default": 0 },
 		"uploaded": { "type": "string", "default": "" },
