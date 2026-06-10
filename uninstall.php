@@ -16,6 +16,25 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
+// Best-effort: remove the Cloudflare Stream webhook subscription this plugin
+// created, so Cloudflare stops posting to a URL that no longer exists. Skipped
+// silently when credentials are gone or the webhook was never enabled.
+$coywolf_cvm_webhook = get_option( 'coywolf_cvm_webhook', array() );
+if ( is_array( $coywolf_cvm_webhook ) && ! empty( $coywolf_cvm_webhook['secret'] ) ) {
+	$coywolf_cvm_token   = defined( 'COYWOLF_CVM_API_TOKEN' ) ? COYWOLF_CVM_API_TOKEN : (string) get_option( 'coywolf_cvm_api_token', '' );
+	$coywolf_cvm_account = defined( 'COYWOLF_CVM_ACCOUNT_ID' ) ? COYWOLF_CVM_ACCOUNT_ID : (string) get_option( 'coywolf_cvm_account_id', '' );
+	if ( '' !== $coywolf_cvm_token && '' !== $coywolf_cvm_account ) {
+		wp_remote_request(
+			'https://api.cloudflare.com/client/v4/accounts/' . rawurlencode( $coywolf_cvm_account ) . '/stream/webhook',
+			array(
+				'method'  => 'DELETE',
+				'timeout' => 10,
+				'headers' => array( 'Authorization' => 'Bearer ' . $coywolf_cvm_token ),
+			)
+		);
+	}
+}
+
 // Options.
 $coywolf_cvm_options = array(
 	'coywolf_cvm_api_token',
@@ -28,6 +47,7 @@ $coywolf_cvm_options = array(
 	'coywolf_cvm_posters',
 	'coywolf_cvm_descriptions',
 	'coywolf_cvm_downloads',
+	'coywolf_cvm_webhook',
 	'coywolf_cvm_list_keys',
 );
 foreach ( $coywolf_cvm_options as $coywolf_cvm_option ) {

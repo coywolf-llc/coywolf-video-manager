@@ -234,6 +234,18 @@ class Coywolf_CVM_REST {
 
 		register_rest_route(
 			self::NS,
+			'/webhook',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				// Cloudflare posts unauthenticated; the callback verifies the
+				// HMAC-SHA256 signature against the stored webhook secret.
+				'permission_callback' => '__return_true',
+				'callback'            => array( $this, 'receive_webhook' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/play/(?P<uid>[A-Za-z0-9_-]+)',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -726,6 +738,77 @@ class Coywolf_CVM_REST {
 		}
 		delete_transient( 'coywolf_cvm_conn_status' );
 		return rest_ensure_response( array( 'ok' => true ) );
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Cloudflare webhook receiver
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Receive a Stream webhook (fires when a video finishes processing or
+	 * errors). After verifying the signature, freshen everything that polling
+	 * would otherwise catch late: the video list cache, the storage numbers,
+	 * the video's cached meta, and its caption schema cache.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function receive_webhook( $request ) {
+		$config = get_option( 'coywolf_cvm_webhook', array() );
+		$secret = ( is_array( $config ) && ! empty( $config['secret'] ) ) ? (string) $config['secret'] : '';
+		if ( '' === $secret ) {
+			return new WP_Error( 'coywolf_cvm_webhook_disabled', __( 'The webhook is not enabled.', 'coywolf-video-manager' ), array( 'status' => 403 ) );
+		}
+
+		$body = (string) $request->get_body();
+		if ( ! $this->verify_webhook_signature( (string) $request->get_header( 'webhook-signature' ), $body, $secret ) ) {
+			return new WP_Error( 'coywolf_cvm_bad_signature', __( 'Invalid webhook signature.', 'coywolf-video-manager' ), array( 'status' => 403 ) );
+		}
+
+		$this->cloudflare->flush_list_cache();
+		$this->cloudflare->flush_storage_usage();
+
+		$video = json_decode( $body, true );
+		$uid   = ( is_array( $video ) && isset( $video['uid'] ) ) ? (string) $video['uid'] : '';
+		if ( '' !== $uid && preg_match( '/^[A-Za-z0-9_-]{1,128}$/', $uid ) ) {
+			delete_transient( 'coywolf_cvm_meta_' . md5( $uid ) );
+			$this->captions->schedule_refresh( $uid );
+		}
+
+		return rest_ensure_response( array( 'ok' => true ) );
+	}
+
+	/**
+	 * Verify Cloudflare's Webhook-Signature header: "time=<unix>,sig1=<hex>",
+	 * where sig1 is HMAC-SHA256 of "<time>.<raw body>" keyed with the webhook
+	 * secret. Stale timestamps (> 10 minutes) are rejected to stop replays.
+	 *
+	 * @param string $header Webhook-Signature header value.
+	 * @param string $body   Raw request body.
+	 * @param string $secret Webhook secret.
+	 * @return bool
+	 */
+	private function verify_webhook_signature( $header, $body, $secret ) {
+		$time = '';
+		$sig  = '';
+		foreach ( explode( ',', $header ) as $part ) {
+			$pair = explode( '=', trim( $part ), 2 );
+			if ( 2 !== count( $pair ) ) {
+				continue;
+			}
+			if ( 'time' === $pair[0] ) {
+				$time = $pair[1];
+			} elseif ( 'sig1' === $pair[0] ) {
+				$sig = $pair[1];
+			}
+		}
+		if ( '' === $time || '' === $sig || ! ctype_digit( $time ) ) {
+			return false;
+		}
+		if ( abs( time() - (int) $time ) > 10 * MINUTE_IN_SECONDS ) {
+			return false;
+		}
+		return hash_equals( hash_hmac( 'sha256', $time . '.' . $body, $secret ), strtolower( $sig ) );
 	}
 
 	/* --------------------------------------------------------------------- *

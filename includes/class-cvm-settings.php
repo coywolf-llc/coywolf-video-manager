@@ -58,6 +58,8 @@ class Coywolf_CVM_Settings {
 
 		add_action( 'admin_init', array( $this, 'register' ) );
 		add_action( 'admin_post_coywolf_cvm_test_connection', array( $this, 'handle_test_connection' ) );
+		add_action( 'admin_post_coywolf_cvm_enable_webhook', array( $this, 'handle_enable_webhook' ) );
+		add_action( 'admin_post_coywolf_cvm_disable_webhook', array( $this, 'handle_disable_webhook' ) );
 
 		// Drop the per-request settings cache when the option changes.
 		add_action( 'update_option_' . self::OPTION, array( $this, 'flush_cache' ) );
@@ -236,6 +238,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'coywolf_cvm_account_id', __( 'Account ID', 'coywolf-video-manager' ), array( $this, 'render_account_field' ), self::PAGE, 'coywolf_cvm_credentials' );
 		add_settings_field( 'coywolf_cvm_api_token', __( 'API token', 'coywolf-video-manager' ), array( $this, 'render_token_field' ), self::PAGE, 'coywolf_cvm_credentials' );
 		add_settings_field( 'coywolf_cvm_connection', __( 'Connection', 'coywolf-video-manager' ), array( $this, 'render_connection_field' ), self::PAGE, 'coywolf_cvm_credentials' );
+		add_settings_field( 'coywolf_cvm_webhook', __( 'Webhook', 'coywolf-video-manager' ), array( $this, 'render_webhook_field' ), self::PAGE, 'coywolf_cvm_credentials' );
 
 		if ( ! $this->cloudflare->is_configured() ) {
 			return;
@@ -792,6 +795,15 @@ class Coywolf_CVM_Settings {
 				$class  = ( 'ok' === $status ) ? 'notice-success' : 'notice-error';
 				$text   = ( 'ok' === $status ) ? __( 'Connection successful.', 'coywolf-video-manager' ) : (string) $status;
 				echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
+			} elseif ( 'webhook' === $notice ) {
+				$status = (string) get_transient( 'coywolf_cvm_webhook_status' );
+				if ( 'on' === $status ) {
+					echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Webhook enabled.', 'coywolf-video-manager' ) . '</p></div>';
+				} elseif ( 'off' === $status ) {
+					echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Webhook disabled.', 'coywolf-video-manager' ) . '</p></div>';
+				} elseif ( '' !== $status ) {
+					echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $status ) . '</p></div>';
+				}
 			}
 		}
 
@@ -817,6 +829,88 @@ class Coywolf_CVM_Settings {
 		set_transient( 'coywolf_cvm_conn_status', $status, 5 * MINUTE_IN_SECONDS );
 
 		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'tested', $this->page_url() ) );
+		exit;
+	}
+
+	/**
+	 * Webhook status + enable/disable button. The webhook lets Cloudflare
+	 * notify this site the moment a video finishes processing (or errors).
+	 */
+	public function render_webhook_field() {
+		if ( ! $this->cloudflare->is_configured() ) {
+			echo '<p class="description">' . esc_html__( 'Connect your Cloudflare account first.', 'coywolf-video-manager' ) . '</p>';
+			return;
+		}
+
+		$config  = get_option( 'coywolf_cvm_webhook', array() );
+		$enabled = is_array( $config ) && ! empty( $config['secret'] );
+
+		if ( $enabled ) {
+			echo '<p>' . esc_html__( 'Enabled — Cloudflare pings this site the moment a video finishes processing, so the library, storage numbers, and caption data refresh instantly instead of waiting for polling.', 'coywolf-video-manager' ) . '</p>';
+			if ( ! empty( $config['url'] ) ) {
+				echo '<p><code>' . esc_html( $config['url'] ) . '</code></p>';
+			}
+			echo '<a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=coywolf_cvm_disable_webhook' ), 'coywolf_cvm_webhook' ) ) . '">' . esc_html__( 'Disable webhook', 'coywolf-video-manager' ) . '</a>';
+			return;
+		}
+
+		echo '<p class="description">' . esc_html__( 'Let Cloudflare notify this site when a video finishes processing, keeping the video library, storage numbers, and caption data fresh without polling. Notifications are signature-verified. Note: Cloudflare allows one Stream webhook per account, so enabling this replaces any existing subscription.', 'coywolf-video-manager' ) . '</p>';
+		echo '<a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=coywolf_cvm_enable_webhook' ), 'coywolf_cvm_webhook' ) ) . '">' . esc_html__( 'Enable webhook', 'coywolf-video-manager' ) . '</a>';
+	}
+
+	/**
+	 * Handle the Enable webhook button: subscribe Cloudflare to this site's
+	 * receiver and store the returned signing secret.
+	 */
+	public function handle_enable_webhook() {
+		if ( ! current_user_can( Coywolf_Video_Manager::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to do that.', 'coywolf-video-manager' ) );
+		}
+		check_admin_referer( 'coywolf_cvm_webhook' );
+
+		$url    = rest_url( 'coywolf-cvm/v1/webhook' );
+		$result = $this->cloudflare->set_webhook( $url );
+		$secret = ( ! is_wp_error( $result ) && isset( $result['secret'] ) ) ? (string) $result['secret'] : '';
+
+		if ( is_wp_error( $result ) || '' === $secret ) {
+			$message = is_wp_error( $result ) ? $result->get_error_message() : __( 'Cloudflare did not return a signing secret.', 'coywolf-video-manager' );
+			set_transient( 'coywolf_cvm_webhook_status', $message, 5 * MINUTE_IN_SECONDS );
+		} else {
+			update_option(
+				'coywolf_cvm_webhook',
+				array(
+					'secret'  => $secret,
+					'url'     => esc_url_raw( $url ),
+					'enabled' => time(),
+				),
+				false
+			);
+			set_transient( 'coywolf_cvm_webhook_status', 'on', 5 * MINUTE_IN_SECONDS );
+		}
+
+		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'webhook', $this->page_url() ) );
+		exit;
+	}
+
+	/**
+	 * Handle the Disable webhook button: remove the Cloudflare subscription
+	 * and forget the secret.
+	 */
+	public function handle_disable_webhook() {
+		if ( ! current_user_can( Coywolf_Video_Manager::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to do that.', 'coywolf-video-manager' ) );
+		}
+		check_admin_referer( 'coywolf_cvm_webhook' );
+
+		$result = $this->cloudflare->delete_webhook();
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'coywolf_cvm_webhook_status', $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
+		} else {
+			delete_option( 'coywolf_cvm_webhook' );
+			set_transient( 'coywolf_cvm_webhook_status', 'off', 5 * MINUTE_IN_SECONDS );
+		}
+
+		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'webhook', $this->page_url() ) );
 		exit;
 	}
 }
