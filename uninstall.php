@@ -27,6 +27,7 @@ $coywolf_cvm_options = array(
 	'coywolf_cvm_version',
 	'coywolf_cvm_posters',
 	'coywolf_cvm_descriptions',
+	'coywolf_cvm_downloads',
 	'coywolf_cvm_list_keys',
 );
 foreach ( $coywolf_cvm_options as $coywolf_cvm_option ) {

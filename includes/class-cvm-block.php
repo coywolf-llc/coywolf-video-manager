@@ -565,6 +565,10 @@ class Coywolf_CVM_Block {
 			? $poster
 			: $this->cloudflare->thumbnail_url( $uid, array( 'width' => self::POSTER_WIDTH ) );
 
+		// A direct MP4 (when enabled on the Edit Video page) beats the watch
+		// page as the contentUrl — search engines want the actual media file.
+		$download = self::video_download_url( $uid );
+
 		$schema = array(
 			'@context'     => 'https://schema.org',
 			'@type'        => 'VideoObject',
@@ -573,7 +577,7 @@ class Coywolf_CVM_Block {
 			'thumbnailUrl' => array( $thumbnail ),
 			'uploadDate'   => '' !== $upload_iso ? $upload_iso : get_the_date( 'c' ),
 			'embedUrl'     => $iframe_url,
-			'contentUrl'   => $this->cloudflare->watch_url( $uid ),
+			'contentUrl'   => '' !== $download ? $download : $this->cloudflare->watch_url( $uid ),
 		);
 		if ( $duration > 0 ) {
 			$schema['duration'] = $this->iso8601_duration( $duration );
@@ -685,6 +689,18 @@ class Coywolf_CVM_Block {
 	public static function video_description( $uid ) {
 		$all = get_option( 'coywolf_cvm_descriptions', array() );
 		return ( is_array( $all ) && isset( $all[ $uid ] ) ) ? (string) $all[ $uid ] : '';
+	}
+
+	/**
+	 * The video's downloadable MP4 URL (enabled on the Edit Video page), or ''
+	 * if none. Used as the schema contentUrl and the sitemap content_loc.
+	 *
+	 * @param string $uid Video UID.
+	 * @return string
+	 */
+	public static function video_download_url( $uid ) {
+		$all = get_option( 'coywolf_cvm_downloads', array() );
+		return ( is_array( $all ) && ! empty( $all[ $uid ] ) ) ? (string) $all[ $uid ] : '';
 	}
 
 	/**

@@ -150,6 +150,31 @@ class Coywolf_CVM_REST {
 
 		register_rest_route(
 			self::NS,
+			'/videos/(?P<uid>[A-Za-z0-9_-]+)/download',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_video_download' ),
+					'permission_callback' => $admin,
+					'args'                => $uid,
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'enable_video_download' ),
+					'permission_callback' => $admin,
+					'args'                => $uid,
+				),
+				array(
+					'methods'             => WP_REST_Server::DELETABLE,
+					'callback'            => array( $this, 'delete_video_download' ),
+					'permission_callback' => $admin,
+					'args'                => $uid,
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/videos/(?P<uid>[A-Za-z0-9_-]+)/captions',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -526,6 +551,80 @@ class Coywolf_CVM_REST {
 			return $video;
 		}
 		return rest_ensure_response( $this->normalize_video( $video ) );
+	}
+
+	/* --------------------------------------------------------------------- *
+	 * Admin: MP4 downloads
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Current MP4 download state.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_video_download( $request ) {
+		$state = $this->cloudflare->get_download( $request['uid'] );
+		if ( is_wp_error( $state ) ) {
+			return $state;
+		}
+		$this->remember_download( (string) $request['uid'], $state );
+		return rest_ensure_response( $state ? $state : array( 'status' => 'none' ) );
+	}
+
+	/**
+	 * Enable (generate) the MP4 download.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function enable_video_download( $request ) {
+		$state = $this->cloudflare->enable_download( $request['uid'] );
+		if ( is_wp_error( $state ) ) {
+			return $state;
+		}
+		$this->remember_download( (string) $request['uid'], $state );
+		return rest_ensure_response( $state ? $state : array( 'status' => 'none' ) );
+	}
+
+	/**
+	 * Remove the MP4 download.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function delete_video_download( $request ) {
+		$result = $this->cloudflare->delete_download( $request['uid'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$this->remember_download( (string) $request['uid'], null );
+		return rest_ensure_response( array( 'deleted' => true ) );
+	}
+
+	/**
+	 * Keep the local uid → MP4 URL map in sync, so the front end (schema
+	 * contentUrl, sitemap content_loc) never has to ask Cloudflare.
+	 *
+	 * @param string     $uid   Video UID.
+	 * @param array|null $state Normalized download state, or null when none.
+	 */
+	private function remember_download( $uid, $state ) {
+		$all = get_option( 'coywolf_cvm_downloads', array() );
+		if ( ! is_array( $all ) ) {
+			$all = array();
+		}
+		$url = ( is_array( $state ) && 'ready' === $state['status'] && ! empty( $state['url'] ) ) ? esc_url_raw( $state['url'] ) : '';
+
+		if ( '' !== $url ) {
+			if ( ! isset( $all[ $uid ] ) || $all[ $uid ] !== $url ) {
+				$all[ $uid ] = $url;
+				update_option( 'coywolf_cvm_downloads', $all, false );
+			}
+		} elseif ( isset( $all[ $uid ] ) ) {
+			unset( $all[ $uid ] );
+			update_option( 'coywolf_cvm_downloads', $all, false );
+		}
 	}
 
 	/* --------------------------------------------------------------------- *

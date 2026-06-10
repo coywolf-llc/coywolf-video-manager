@@ -198,7 +198,7 @@ final class Coywolf_Video_Manager {
 		$this->stats->delete_uid( $uid );
 		$this->captions->purge( $uid );
 
-		foreach ( array( 'coywolf_cvm_posters', 'coywolf_cvm_descriptions' ) as $store ) {
+		foreach ( array( 'coywolf_cvm_posters', 'coywolf_cvm_descriptions', 'coywolf_cvm_downloads' ) as $store ) {
 			$all = get_option( $store, array() );
 			if ( is_array( $all ) && isset( $all[ $uid ] ) ) {
 				unset( $all[ $uid ] );

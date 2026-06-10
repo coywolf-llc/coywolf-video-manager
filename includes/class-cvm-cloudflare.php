@@ -484,6 +484,77 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/* --------------------------------------------------------------------- *
+	 * MP4 downloads
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Ask Cloudflare to generate (or report) the downloadable MP4 for a video.
+	 *
+	 * @param string $uid Video UID.
+	 * @return array|WP_Error|null { status, url, percent }, or null when none.
+	 */
+	public function enable_download( $uid ) {
+		$response = $this->request( 'POST', $this->stream_url( '/' . rawurlencode( $uid ) . '/downloads' ), array( 'timeout' => 30 ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return $this->normalize_download( $response );
+	}
+
+	/**
+	 * Current MP4 download state for a video.
+	 *
+	 * @param string $uid Video UID.
+	 * @return array|WP_Error|null { status, url, percent }, or null when none.
+	 */
+	public function get_download( $uid ) {
+		$response = $this->request( 'GET', $this->stream_url( '/' . rawurlencode( $uid ) . '/downloads' ) );
+		if ( is_wp_error( $response ) ) {
+			$data   = $response->get_error_data();
+			$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
+			// No download has ever been created for this video.
+			if ( 404 === $status ) {
+				return null;
+			}
+			return $response;
+		}
+		return $this->normalize_download( $response );
+	}
+
+	/**
+	 * Remove a video's downloadable MP4.
+	 *
+	 * @param string $uid Video UID.
+	 * @return true|WP_Error
+	 */
+	public function delete_download( $uid ) {
+		$response = $this->request( 'DELETE', $this->stream_url( '/' . rawurlencode( $uid ) . '/downloads' ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return true;
+	}
+
+	/**
+	 * Reduce Cloudflare's downloads envelope to { status, url, percent }.
+	 *
+	 * @param array $response Decoded response.
+	 * @return array|null Null when no default download exists.
+	 */
+	private function normalize_download( $response ) {
+		$result = isset( $response['result'] ) && is_array( $response['result'] ) ? $response['result'] : array();
+		if ( empty( $result['default'] ) || ! is_array( $result['default'] ) ) {
+			return null;
+		}
+		$download = $result['default'];
+		return array(
+			'status'  => isset( $download['status'] ) ? (string) $download['status'] : '',
+			'url'     => isset( $download['url'] ) ? (string) $download['url'] : '',
+			'percent' => isset( $download['percentComplete'] ) ? (float) $download['percentComplete'] : 0,
+		);
+	}
+
+	/* --------------------------------------------------------------------- *
 	 * Captions
 	 * --------------------------------------------------------------------- */
 
