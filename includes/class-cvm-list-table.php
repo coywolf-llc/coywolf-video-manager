@@ -51,6 +51,23 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	private $error = null;
 
 	/**
+	 * UIDs embedded in content but missing from Cloudflare (see prepare_items).
+	 *
+	 * @var string[]
+	 */
+	private $orphans = array();
+
+	/**
+	 * UIDs embedded in content but missing from Cloudflare. Empty when the
+	 * fetch failed or was too large to trust.
+	 *
+	 * @return string[]
+	 */
+	public function orphaned_uids() {
+		return $this->orphans;
+	}
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Coywolf_CVM_Cloudflare $cloudflare API client.
@@ -316,6 +333,25 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			$this->error = $videos;
 			$this->items = array();
 			return;
+		}
+
+		// Embedded-but-missing detection: videos still referenced by posts or
+		// pages but no longer on Cloudflare (deleted in its dashboard). Only
+		// computed from a complete, successful fetch — an API error or a
+		// truncated page of 1,000 must never make a video look deleted.
+		$this->orphans = array();
+		if ( count( $videos ) < 1000 ) {
+			$cloud = array();
+			foreach ( $videos as $video ) {
+				if ( ! empty( $video['uid'] ) ) {
+					$cloud[ (string) $video['uid'] ] = true;
+				}
+			}
+			foreach ( $this->index->embedded_uids() as $embedded ) {
+				if ( ! isset( $cloud[ $embedded ] ) ) {
+					$this->orphans[] = $embedded;
+				}
+			}
 		}
 
 		$rows = array();

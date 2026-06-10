@@ -75,6 +75,7 @@ class Coywolf_CVM_Admin {
 
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_post_coywolf_cvm_cleanup_orphans', array( $this, 'handle_cleanup_orphans' ) );
 	}
 
 	/**
@@ -160,6 +161,7 @@ class Coywolf_CVM_Admin {
 						'mediaTitle'     => __( 'Select poster image', 'coywolf-video-manager' ),
 						'mediaButton'    => __( 'Use image', 'coywolf-video-manager' ),
 						'confirmDelete'  => __( 'Delete this video from Cloudflare? This cannot be undone, and its block is removed from any post or page that uses it.', 'coywolf-video-manager' ),
+						'confirmOrphans' => __( 'Remove the missing videos from those posts and delete their leftover local data? This cannot be undone.', 'coywolf-video-manager' ),
 						'deleteConfirm'  => __( 'Delete', 'coywolf-video-manager' ),
 						'deleting'       => __( 'Deleting…', 'coywolf-video-manager' ),
 						'saved'          => __( 'Saved.', 'coywolf-video-manager' ),
@@ -346,6 +348,7 @@ class Coywolf_CVM_Admin {
 		require_once COYWOLF_CVM_PATH . 'includes/class-cvm-list-table.php';
 		$table = new Coywolf_CVM_List_Table( $this->cloudflare, $this->stats, $this->index );
 		$table->prepare_items();
+		$this->render_orphans_notice( $table->orphaned_uids() );
 
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" />';
@@ -386,6 +389,21 @@ class Coywolf_CVM_Admin {
 	private function render_action_notice() {
 		if ( isset( $_GET['coywolf_cvm_saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Video updated.', 'coywolf-video-manager' ) . '</p></div>';
+			return;
+		}
+		if ( isset( $_GET['coywolf_cvm_cleanup_failed'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Could not verify the video list with Cloudflare, so nothing was removed. Try again in a moment.', 'coywolf-video-manager' ) . '</p></div>';
+			return;
+		}
+		if ( isset( $_GET['coywolf_cvm_cleaned'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$cleaned = (int) $_GET['coywolf_cvm_cleaned']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html(
+				sprintf(
+					/* translators: %d: number of videos cleaned up. */
+					_n( '%d missing video removed from posts and cleaned up.', '%d missing videos removed from posts and cleaned up.', $cleaned, 'coywolf-video-manager' ),
+					$cleaned
+				)
+			) . '</p></div>';
 			return;
 		}
 		if ( ! isset( $_GET['coywolf_cvm_deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -608,6 +626,93 @@ class Coywolf_CVM_Admin {
 		</div>
 		<?php
 		echo '</div>';
+	}
+
+	/**
+	 * Warn about videos that are still embedded in content but no longer
+	 * exist on Cloudflare (deleted in its dashboard, so no webhook fired and
+	 * no purge ran). Cleanup only happens on explicit confirmation.
+	 *
+	 * @param string[] $orphans Missing-but-embedded video UIDs.
+	 */
+	private function render_orphans_notice( $orphans ) {
+		if ( empty( $orphans ) ) {
+			return;
+		}
+
+		echo '<div class="notice notice-warning">';
+		echo '<p><strong>' . esc_html(
+			sprintf(
+				/* translators: %d: number of videos. */
+				_n( '%d missing video', '%d missing videos', count( $orphans ), 'coywolf-video-manager' ),
+				count( $orphans )
+			)
+		) . '</strong> — ' . esc_html__( 'still embedded in content but no longer on Cloudflare Stream (deleted in its dashboard?). Visitors see an empty player on the pages below.', 'coywolf-video-manager' ) . '</p>';
+
+		echo '<ul style="list-style:disc;margin-left:2em;">';
+		foreach ( array_slice( $orphans, 0, 5 ) as $uid ) {
+			$links = array();
+			foreach ( array_slice( $this->index->posts_for( $uid ), 0, 3 ) as $post_id ) {
+				$title   = get_the_title( $post_id );
+				$links[] = '<a href="' . esc_url( (string) get_edit_post_link( $post_id ) ) . '">' . esc_html( '' !== $title ? $title : '#' . $post_id ) . '</a>';
+			}
+			echo '<li><code>' . esc_html( $uid ) . '</code>' . ( $links ? ' — ' . wp_kses_post( implode( ', ', $links ) ) : '' ) . '</li>';
+		}
+		if ( count( $orphans ) > 5 ) {
+			echo '<li>' . esc_html(
+				sprintf(
+					/* translators: %d: number of additional videos. */
+					_n( '…and %d more.', '…and %d more.', count( $orphans ) - 5, 'coywolf-video-manager' ),
+					count( $orphans ) - 5
+				)
+			) . '</li>';
+		}
+		echo '</ul>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="coywolf-cvm-orphans-form">';
+		echo '<input type="hidden" name="action" value="coywolf_cvm_cleanup_orphans" />';
+		wp_nonce_field( 'coywolf_cvm_cleanup_orphans' );
+		echo '<p>';
+		echo '<button type="submit" class="button">' . esc_html__( 'Remove missing videos from posts', 'coywolf-video-manager' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Removes their blocks from the posts above and deletes the leftover local data. The list is re-checked against Cloudflare first. This cannot be undone.', 'coywolf-video-manager' ) . '</span>';
+		echo '</p>';
+		echo '</form>';
+		echo '</div>';
+	}
+
+	/**
+	 * Confirmed orphan cleanup: re-verify against a fresh, complete Cloudflare
+	 * list, then run the full purge (block removal + local data) for each
+	 * video that is genuinely gone.
+	 */
+	public function handle_cleanup_orphans() {
+		if ( ! current_user_can( Coywolf_Video_Manager::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to do that.', 'coywolf-video-manager' ) );
+		}
+		check_admin_referer( 'coywolf_cvm_cleanup_orphans' );
+
+		$videos = $this->cloudflare->list_videos( array( 'force' => true ) );
+		if ( is_wp_error( $videos ) || count( $videos ) >= 1000 ) {
+			// Can't trust the comparison; never purge on uncertain data.
+			$this->redirect_list( array( 'coywolf_cvm_cleanup_failed' => 1 ) );
+		}
+
+		$cloud = array();
+		foreach ( $videos as $video ) {
+			if ( ! empty( $video['uid'] ) ) {
+				$cloud[ (string) $video['uid'] ] = true;
+			}
+		}
+
+		$cleaned = 0;
+		foreach ( $this->index->embedded_uids() as $uid ) {
+			if ( ! isset( $cloud[ $uid ] ) ) {
+				Coywolf_Video_Manager::instance()->purge_video( $uid );
+				++$cleaned;
+			}
+		}
+
+		$this->redirect_list( array( 'coywolf_cvm_cleaned' => $cleaned ) );
 	}
 
 	/**
