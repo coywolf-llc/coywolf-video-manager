@@ -77,6 +77,65 @@
 		return String( s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
 	}
 
+	// 266 -> "4:26", 3735 -> "1:02:15".
+	function formatTime( value ) {
+		var total = Math.max( 0, Math.floor( parseFloat( value ) || 0 ) );
+		var h = Math.floor( total / 3600 );
+		var m = Math.floor( ( total % 3600 ) / 60 );
+		var s = total % 60;
+		var ss = ( s < 10 ? '0' : '' ) + s;
+		if ( h > 0 ) {
+			return h + ':' + ( m < 10 ? '0' : '' ) + m + ':' + ss;
+		}
+		return m + ':' + ss;
+	}
+
+	// "4:26" -> 266, "1:02:15" -> 3735, "266" -> 266; null when not a time.
+	function parseTime( text ) {
+		var t = String( text ).trim();
+		if ( ! /^[0-9]+(:[0-9]+){0,2}(\.[0-9]+)?$/.test( t ) ) {
+			return null;
+		}
+		var parts = t.split( ':' );
+		var total = 0;
+		for ( var i = 0; i < parts.length; i++ ) {
+			total = total * 60 + parseFloat( parts[ i ] );
+		}
+		return total;
+	}
+
+	/**
+	 * Text control for a value stored in seconds, edited as h:mm:ss, m:ss, or
+	 * plain seconds. Partial input ("4:") is kept while typing and normalized
+	 * on blur; valid input commits through props.onChange in seconds, clamped
+	 * to props.max when set.
+	 */
+	function TimeField( props ) {
+		var draftState = useState( null );
+		var draft = draftState[ 0 ];
+		var setDraft = draftState[ 1 ];
+		return el( TextControl, {
+			label: props.label,
+			value: null !== draft ? draft : formatTime( props.value ),
+			placeholder: '0:00',
+			help: props.help,
+			__nextHasNoMarginBottom: true,
+			onChange: function ( v ) {
+				setDraft( v );
+				var parsed = parseTime( v );
+				if ( null !== parsed ) {
+					if ( props.max && parsed > props.max ) {
+						parsed = props.max;
+					}
+					props.onChange( parsed );
+				}
+			},
+			onBlur: function () {
+				setDraft( null );
+			}
+		} );
+	}
+
 	/**
 	 * Video picker modal.
 	 */
@@ -445,12 +504,11 @@
 					}
 				} ),
 				'timestamp' === a.posterMode
-					? el( RangeControl, {
-						label: __( 'Timestamp (seconds)', 'coywolf-video-manager' ),
+					? el( TimeField, {
+						label: __( 'Timestamp', 'coywolf-video-manager' ),
 						value: a.posterTime,
-						min: 0,
-						max: durationMax > 1 ? durationMax : 600,
-						__nextHasNoMarginBottom: true,
+						max: durationMax > 1 ? durationMax : 0,
+						help: __( 'Minutes:seconds (4:26), hours:minutes:seconds (1:02:15), or seconds (266).', 'coywolf-video-manager' ),
 						onChange: function ( v ) {
 							setAttributes( { posterTime: v } );
 						}
@@ -486,12 +544,11 @@
 			el(
 				PanelBody,
 				{ title: __( 'Playback', 'coywolf-video-manager' ), initialOpen: false },
-				el( RangeControl, {
-					label: __( 'Start time (seconds)', 'coywolf-video-manager' ),
+				el( TimeField, {
+					label: __( 'Start time', 'coywolf-video-manager' ),
 					value: a.startTime,
-					min: 0,
-					max: durationMax > 1 ? durationMax : 3600,
-					__nextHasNoMarginBottom: true,
+					max: durationMax > 1 ? durationMax : 0,
+					help: __( 'Minutes:seconds (4:26), hours:minutes:seconds (1:02:15), or seconds (266).', 'coywolf-video-manager' ),
 					onChange: function ( v ) {
 						setAttributes( { startTime: v } );
 					}

@@ -511,7 +511,7 @@ class Coywolf_CVM_Admin {
 						</p>
 						<div class="cvm-poster-timestamp"<?php echo 'image' === $poster_mode ? ' style="display:none;"' : ''; ?>>
 							<input type="range" id="cvm-poster-time" aria-label="<?php esc_attr_e( 'Poster timestamp (seconds)', 'coywolf-video-manager' ); ?>" min="0" max="<?php echo esc_attr( $duration > 0 ? (int) ceil( $duration ) : 600 ); ?>" value="<?php echo esc_attr( $poster_time ); ?>" />
-							<output id="cvm-poster-time-out"><?php echo esc_html( $poster_time ); ?>s</output>
+							<input type="text" id="cvm-poster-time-text" class="coywolf-cvm-poster-time-text" aria-label="<?php esc_attr_e( 'Poster timestamp (hours:minutes:seconds)', 'coywolf-video-manager' ); ?>" value="<?php echo esc_attr( self::format_timestamp( $poster_time ) ); ?>" />
 						</div>
 						<div class="cvm-poster-image"<?php echo 'image' !== $poster_mode ? ' style="display:none;"' : ''; ?>>
 							<button type="button" class="button" id="cvm-poster-pick"><?php esc_html_e( 'Select / upload image', 'coywolf-video-manager' ); ?></button>
@@ -581,5 +581,23 @@ class Coywolf_CVM_Admin {
 		</div>
 		<?php
 		echo '</div>';
+	}
+
+	/**
+	 * Format a timestamp in seconds as m:ss or h:mm:ss (e.g. 266 -> "4:26",
+	 * 3735 -> "1:02:15"). Mirrored by formatTime() in admin.js and block.js.
+	 *
+	 * @param float $seconds Seconds.
+	 * @return string
+	 */
+	private static function format_timestamp( $seconds ) {
+		$total = max( 0, (int) floor( (float) $seconds ) );
+		$h     = (int) floor( $total / 3600 );
+		$m     = (int) floor( ( $total % 3600 ) / 60 );
+		$s     = $total % 60;
+		if ( $h > 0 ) {
+			return sprintf( '%d:%02d:%02d', $h, $m, $s );
+		}
+		return sprintf( '%d:%02d', $m, $s );
 	}
 }
