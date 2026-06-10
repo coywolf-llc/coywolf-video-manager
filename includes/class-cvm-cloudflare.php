@@ -484,6 +484,45 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/* --------------------------------------------------------------------- *
+	 * Webhook subscription
+	 * --------------------------------------------------------------------- */
+
+	/**
+	 * Subscribe the account's Stream webhook to a notification URL (Cloudflare
+	 * allows one subscription per account; this replaces any existing one).
+	 *
+	 * @param string $notification_url Receiver URL.
+	 * @return array|WP_Error Result incl. the HMAC `secret` for verification.
+	 */
+	public function set_webhook( $notification_url ) {
+		$response = $this->request(
+			'PUT',
+			$this->stream_url( '/webhook' ),
+			array(
+				'body'    => array( 'notificationUrl' => $notification_url ),
+				'timeout' => 30,
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return isset( $response['result'] ) && is_array( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Delete the account's Stream webhook subscription.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function delete_webhook() {
+		$response = $this->request( 'DELETE', $this->stream_url( '/webhook' ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		return true;
+	}
+
+	/* --------------------------------------------------------------------- *
 	 * MP4 downloads
 	 * --------------------------------------------------------------------- */
 
