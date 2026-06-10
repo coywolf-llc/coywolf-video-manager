@@ -77,6 +77,32 @@
 		return String( s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
 	}
 
+	// Editor-preview sanitizer for the staged description: keeps the safe
+	// markup wp_kses_post would allow on save, but drops script-ish elements
+	// and on*/javascript: attributes so pasted markup can't run in the editor
+	// before the server has sanitized it. DOMParser documents are inert (no
+	// resource loading, no script execution) while we clean.
+	function sanitizeHtml( html ) {
+		var doc = new window.DOMParser().parseFromString( '<body>' + String( html ), 'text/html' );
+		var nodes = doc.body.querySelectorAll( '*' );
+		for ( var i = nodes.length - 1; i >= 0; i-- ) {
+			var node = nodes[ i ];
+			var tag = node.tagName.toLowerCase();
+			if ( 'script' === tag || 'style' === tag || 'iframe' === tag || 'object' === tag || 'embed' === tag || 'form' === tag || 'link' === tag || 'meta' === tag ) {
+				node.parentNode.removeChild( node );
+				continue;
+			}
+			for ( var j = node.attributes.length - 1; j >= 0; j-- ) {
+				var attr = node.attributes[ j ];
+				var name = attr.name.toLowerCase();
+				if ( 0 === name.indexOf( 'on' ) || ( ( 'href' === name || 'src' === name || 'xlink:href' === name || 'action' === name || 'formaction' === name ) && /^\s*(javascript|data|vbscript):/i.test( attr.value ) ) ) {
+					node.removeAttribute( attr.name );
+				}
+			}
+		}
+		return doc.body.innerHTML;
+	}
+
 	// 266 -> "4:26", 3735 -> "1:02:15".
 	function formatTime( value ) {
 		var total = Math.max( 0, Math.floor( parseFloat( value ) || 0 ) );
@@ -391,8 +417,9 @@
 			}
 			if ( wantDesc ) {
 				// Safe HTML is allowed in descriptions (as on the Edit Video
-				// page); the server sanitizes it with wp_kses_post on save.
-				html += ( '' !== html ? ' — ' : '' ) + '<span class="coywolf-cvm-desc">' + desc + '</span>';
+				// page); the server sanitizes with wp_kses_post on save, and
+				// sanitizeHtml() covers the staged text until then.
+				html += ( '' !== html ? ' — ' : '' ) + '<span class="coywolf-cvm-desc">' + sanitizeHtml( desc ) + '</span>';
 			}
 
 			if ( ! caption ) {

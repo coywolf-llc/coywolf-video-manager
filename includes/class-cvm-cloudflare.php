@@ -752,7 +752,9 @@ class Coywolf_CVM_Cloudflare {
 			);
 			foreach ( $candidates as $url ) {
 				if ( $url && preg_match( '#//customer-([a-z0-9]+)\.cloudflarestream\.com#i', $url, $m ) ) {
-					update_option( 'coywolf_cvm_customer_code', $m[1], false );
+					// Autoloaded: it's ~10 chars and read on every front-end
+					// render to build playback URLs.
+					update_option( 'coywolf_cvm_customer_code', $m[1], true );
 					return;
 				}
 			}
