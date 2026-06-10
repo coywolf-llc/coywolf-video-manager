@@ -70,6 +70,13 @@ final class Coywolf_Video_Manager {
 	private $index;
 
 	/**
+	 * Caption schema cache (transcripts + downloadable VTT tracks).
+	 *
+	 * @var Coywolf_CVM_Captions
+	 */
+	private $captions;
+
+	/**
 	 * REST controller.
 	 *
 	 * @var Coywolf_CVM_REST
@@ -117,8 +124,9 @@ final class Coywolf_Video_Manager {
 		$this->stats      = new Coywolf_CVM_Stats();
 		$this->index      = new Coywolf_CVM_Index();
 		$this->settings   = new Coywolf_CVM_Settings( $this->cloudflare );
-		$this->rest       = new Coywolf_CVM_REST( $this->cloudflare, $this->stats, $this->index );
-		$this->block      = new Coywolf_CVM_Block( $this->cloudflare, $this->settings, $this->stats );
+		$this->captions   = new Coywolf_CVM_Captions( $this->cloudflare );
+		$this->rest       = new Coywolf_CVM_REST( $this->cloudflare, $this->stats, $this->index, $this->captions );
+		$this->block      = new Coywolf_CVM_Block( $this->cloudflare, $this->settings, $this->stats, $this->captions );
 		$this->admin      = new Coywolf_CVM_Admin( $this->cloudflare, $this->stats, $this->index, $this->settings );
 		$this->sitemap    = new Coywolf_CVM_Sitemap( $this->cloudflare, $this->index, $this->settings );
 
@@ -171,6 +179,15 @@ final class Coywolf_Video_Manager {
 	}
 
 	/**
+	 * Caption schema cache.
+	 *
+	 * @return Coywolf_CVM_Captions
+	 */
+	public function captions() {
+		return $this->captions;
+	}
+
+	/**
 	 * Purge all local traces of a deleted video: strip its block from any
 	 * post/page, and drop its stats, poster, and cached metadata.
 	 *
@@ -179,6 +196,7 @@ final class Coywolf_Video_Manager {
 	public function purge_video( $uid ) {
 		$this->index->remove_video( $uid );
 		$this->stats->delete_uid( $uid );
+		$this->captions->purge( $uid );
 
 		foreach ( array( 'coywolf_cvm_posters', 'coywolf_cvm_descriptions' ) as $store ) {
 			$all = get_option( $store, array() );
@@ -224,5 +242,7 @@ final class Coywolf_Video_Manager {
 		if ( $timestamp ) {
 			wp_unschedule_event( $timestamp, self::CRON_RECONCILE );
 		}
+
+		wp_unschedule_hook( Coywolf_CVM_Captions::CRON_HOOK );
 	}
 }

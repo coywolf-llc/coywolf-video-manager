@@ -53,6 +53,23 @@ delete_site_transient( 'coywolf_cvm_gh_release_err' );
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( '_transient_coywolf_cvm_' ) . '%', $wpdb->esc_like( '_transient_timeout_coywolf_cvm_' ) . '%' ) );
 
+// Per-video caption schema caches (one option per video UID).
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'coywolf_cvm_captions_' ) . '%' ) );
+
+// Mirrored caption VTT files in the uploads folder.
+$coywolf_cvm_uploads = wp_upload_dir( null, false );
+if ( ! empty( $coywolf_cvm_uploads['basedir'] ) ) {
+	if ( ! function_exists( 'WP_Filesystem' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	WP_Filesystem();
+	global $wp_filesystem;
+	if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+		$wp_filesystem->delete( trailingslashit( $coywolf_cvm_uploads['basedir'] ) . 'coywolf-video-manager', true );
+	}
+}
+
 // Strip the access capability from every role.
 $coywolf_cvm_roles = wp_roles();
 if ( $coywolf_cvm_roles instanceof WP_Roles ) {
@@ -69,6 +86,9 @@ $coywolf_cvm_ts = wp_next_scheduled( 'coywolf_cvm_reconcile' );
 if ( $coywolf_cvm_ts ) {
 	wp_unschedule_event( $coywolf_cvm_ts, 'coywolf_cvm_reconcile' );
 }
+
+// Pending caption refresh events (one per video UID).
+wp_unschedule_hook( 'coywolf_cvm_captions_refresh' );
 
 // Per-post embed index.
 delete_post_meta_by_key( 'coywolf_cvm_videos' );

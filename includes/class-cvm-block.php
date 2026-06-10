@@ -47,6 +47,13 @@ class Coywolf_CVM_Block {
 	private $stats;
 
 	/**
+	 * Caption schema cache (transcripts + downloadable VTT tracks).
+	 *
+	 * @var Coywolf_CVM_Captions
+	 */
+	private $captions;
+
+	/**
 	 * Maps inherit-able block attributes to their settings keys.
 	 *
 	 * @var array
@@ -73,11 +80,13 @@ class Coywolf_CVM_Block {
 	 * @param Coywolf_CVM_Cloudflare $cloudflare API client.
 	 * @param Coywolf_CVM_Settings   $settings   Settings.
 	 * @param Coywolf_CVM_Stats      $stats      Stats store.
+	 * @param Coywolf_CVM_Captions   $captions   Caption schema cache.
 	 */
-	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Settings $settings, Coywolf_CVM_Stats $stats ) {
+	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Settings $settings, Coywolf_CVM_Stats $stats, Coywolf_CVM_Captions $captions ) {
 		$this->cloudflare = $cloudflare;
 		$this->settings   = $settings;
 		$this->stats      = $stats;
+		$this->captions   = $captions;
 
 		add_action( 'init', array( $this, 'register' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_front' ) );
@@ -566,6 +575,16 @@ class Coywolf_CVM_Block {
 		);
 		if ( $duration > 0 ) {
 			$schema['duration'] = $this->iso8601_duration( $duration );
+		}
+
+		// When the video has captions: the transcript as running prose, and a
+		// downloadable VTT MediaObject per caption track.
+		$caption_data = $this->captions->schema_data( $uid );
+		if ( null !== $caption_data ) {
+			if ( '' !== $caption_data['transcript'] ) {
+				$schema['transcript'] = $caption_data['transcript'];
+			}
+			$schema['caption'] = $caption_data['caption'];
 		}
 
 		// The view count is always reported in the schema; the like count is
