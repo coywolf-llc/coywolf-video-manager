@@ -353,6 +353,91 @@
 		}
 
 		wireCaptions( root, uid );
+		wireDownloads( uid );
+	}
+
+	/* ----- MP4 download ----- */
+
+	function wireDownloads( uid ) {
+		var box = document.getElementById( 'cvm-mp4' );
+		if ( ! box ) {
+			return;
+		}
+
+		function path() {
+			return '/videos/' + encodeURIComponent( uid ) + '/download';
+		}
+
+		function render( state, errText ) {
+			box.innerHTML = '';
+			if ( errText ) {
+				var err = document.createElement( 'p' );
+				err.textContent = '✗ ' + errText;
+				box.appendChild( err );
+			}
+
+			if ( state && 'ready' === state.status && state.url ) {
+				var link = document.createElement( 'a' );
+				link.href = state.url;
+				link.textContent = state.url;
+				link.target = '_blank';
+				link.rel = 'noopener';
+				box.appendChild( link );
+				box.appendChild( document.createTextNode( ' ' ) );
+				var del = document.createElement( 'button' );
+				del.type = 'button';
+				del.className = 'button-link';
+				del.textContent = i18n.remove || 'Remove';
+				del.addEventListener( 'click', function () {
+					del.disabled = true;
+					rest( path(), 'DELETE' ).then( function () {
+						render( null );
+					} ).catch( function ( e ) {
+						del.disabled = false;
+						render( state, errMsg( e ) );
+					} );
+				} );
+				box.appendChild( del );
+				return;
+			}
+
+			if ( state && 'inprogress' === state.status ) {
+				var pct = 'number' === typeof state.percent ? Math.round( state.percent ) : 0;
+				box.textContent = ( i18n.mp4Preparing || 'Preparing MP4…' ) + ( pct > 0 ? ' ' + pct + '%' : '' );
+				window.setTimeout( load, 3000 );
+				return;
+			}
+
+			if ( state && 'error' === state.status ) {
+				var failed = document.createElement( 'p' );
+				failed.textContent = i18n.mp4Failed || 'Could not prepare the MP4.';
+				box.appendChild( failed );
+			}
+
+			var btn = document.createElement( 'button' );
+			btn.type = 'button';
+			btn.className = 'button';
+			btn.textContent = i18n.mp4Enable || 'Enable MP4 download';
+			btn.addEventListener( 'click', function () {
+				btn.disabled = true;
+				rest( path(), 'POST' ).then( function ( res ) {
+					render( res );
+				} ).catch( function ( e ) {
+					render( null, errMsg( e ) );
+				} );
+			} );
+			box.appendChild( btn );
+		}
+
+		function load() {
+			rest( path() ).then( function ( res ) {
+				render( res );
+			} ).catch( function ( e ) {
+				render( null, errMsg( e ) );
+			} );
+		}
+
+		load();
 	}
 
 	/* ----- Captions ----- */

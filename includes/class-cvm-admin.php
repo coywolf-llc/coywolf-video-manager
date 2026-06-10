@@ -176,6 +176,9 @@ class Coywolf_CVM_Admin {
 						'processing'     => __( 'Uploaded. Cloudflare is processing the video…', 'coywolf-video-manager' ),
 						'uploadFailed'   => __( 'Upload failed.', 'coywolf-video-manager' ),
 						'stillProcessing' => __( 'Still processing — check All Videos shortly.', 'coywolf-video-manager' ),
+						'mp4Enable'      => __( 'Enable MP4 download', 'coywolf-video-manager' ),
+						'mp4Preparing'   => __( 'Preparing MP4…', 'coywolf-video-manager' ),
+						'mp4Failed'      => __( 'Could not prepare the MP4.', 'coywolf-video-manager' ),
 						'ready'          => __( 'Ready!', 'coywolf-video-manager' ),
 						'editNow'        => __( 'Edit this video', 'coywolf-video-manager' ),
 						'processError'   => __( 'Cloudflare could not process this video.', 'coywolf-video-manager' ),
@@ -540,6 +543,13 @@ class Coywolf_CVM_Admin {
 							</p>
 						</div>
 						<div class="coywolf-cvm-poster-preview"><img id="cvm-poster-img" src="<?php echo esc_url( $preview_src ); ?>" alt="" /></div>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'MP4 download', 'coywolf-video-manager' ); ?></th>
+					<td>
+						<div id="cvm-mp4" class="coywolf-cvm-mp4"><span class="spinner is-active" style="float:none;margin:0;"></span></div>
+						<p class="description"><?php esc_html_e( 'Generates a downloadable MP4 of this video. Once ready, it is also used as the direct video URL in the schema markup and the XML sitemap. Each download counts toward Cloudflare minutes delivered.', 'coywolf-video-manager' ); ?></p>
 					</td>
 				</tr>
 				<tr>
