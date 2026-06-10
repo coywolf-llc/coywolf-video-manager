@@ -72,6 +72,16 @@
 	margin-bottom: 0.3em;
 }
 
+.cvm-poster-timestamp input[type="range"] {
+	vertical-align: middle;
+}
+
+.coywolf-cvm-poster-time-text {
+	width: 5.5em;
+	text-align: center;
+	vertical-align: middle;
+}
+
 .coywolf-cvm-poster-preview {
 	margin-top: 0.8em;
 }

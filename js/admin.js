@@ -36,6 +36,33 @@
 		return ( e && e.message ) ? e.message : 'Request failed.';
 	}
 
+	// 266 -> "4:26", 3735 -> "1:02:15".
+	function formatTime( value ) {
+		var total = Math.max( 0, Math.floor( parseFloat( value ) || 0 ) );
+		var h = Math.floor( total / 3600 );
+		var m = Math.floor( ( total % 3600 ) / 60 );
+		var s = total % 60;
+		var ss = ( s < 10 ? '0' : '' ) + s;
+		if ( h > 0 ) {
+			return h + ':' + ( m < 10 ? '0' : '' ) + m + ':' + ss;
+		}
+		return m + ':' + ss;
+	}
+
+	// "4:26" -> 266, "1:02:15" -> 3735, "266" -> 266; null when not a time.
+	function parseTime( text ) {
+		var t = String( text ).trim();
+		if ( ! /^[0-9]+(:[0-9]+){0,2}(\.[0-9]+)?$/.test( t ) ) {
+			return null;
+		}
+		var parts = t.split( ':' );
+		var total = 0;
+		for ( var i = 0; i < parts.length; i++ ) {
+			total = total * 60 + parseFloat( parts[ i ] );
+		}
+		return total;
+	}
+
 	function copyText( text ) {
 		if ( navigator.clipboard && navigator.clipboard.writeText ) {
 			return navigator.clipboard.writeText( text );
@@ -151,17 +178,39 @@
 			} );
 		} );
 
-		// Poster timestamp → live thumbnail.
+		// Poster timestamp → live thumbnail. The slider scrubs; the text field
+		// shows/accepts h:mm:ss, m:ss, or plain seconds. The slider holds the
+		// canonical seconds value (the save handler reads it).
 		var range = document.getElementById( 'cvm-poster-time' );
-		var out = document.getElementById( 'cvm-poster-time-out' );
+		var timeText = document.getElementById( 'cvm-poster-time-text' );
 		var timer = null;
+
+		function schedulePosterPreview() {
+			if ( timer ) {
+				window.clearTimeout( timer );
+			}
+			timer = window.setTimeout( updatePosterPreview, 350 );
+		}
+
 		if ( range ) {
 			range.addEventListener( 'input', function () {
-				out.textContent = range.value + 's';
-				if ( timer ) {
-					window.clearTimeout( timer );
+				if ( timeText ) {
+					timeText.value = formatTime( range.value );
 				}
-				timer = window.setTimeout( updatePosterPreview, 350 );
+				schedulePosterPreview();
+			} );
+		}
+		if ( range && timeText ) {
+			timeText.addEventListener( 'input', function () {
+				var parsed = parseTime( timeText.value );
+				if ( null !== parsed ) {
+					range.value = parsed; // the browser clamps to the slider max.
+					schedulePosterPreview();
+				}
+			} );
+			// Normalize whatever was typed back to the canonical format.
+			timeText.addEventListener( 'blur', function () {
+				timeText.value = formatTime( range.value );
 			} );
 		}
 
