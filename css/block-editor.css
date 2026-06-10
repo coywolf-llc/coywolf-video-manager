@@ -1,10 +1,7 @@
 /* Coywolf Video Manager — block editor styles. */
 
-.coywolf-cvm-video-fields {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	margin-bottom: 16px;
+.coywolf-cvm-video-field {
+	margin: 8px 0 16px;
 }
 
 .coywolf-cvm-picker .components-modal__content {

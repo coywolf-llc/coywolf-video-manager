@@ -113,6 +113,13 @@
 	text-align: var( --cvm-meta-align );
 }
 
+/* When the name/description figcaption is hidden, the meta row directly
+   follows the player; give it the figcaption's breathing room. */
+.coywolf-cvm .coywolf-cvm-frame + .coywolf-cvm-meta,
+.coywolf-cvm .coywolf-cvm-bound + .coywolf-cvm-meta {
+	margin-top: 0.7em;
+}
+
 /* Like button — reset theme <button> styling, then make it a YouTube pill. */
 .coywolf-cvm .coywolf-cvm-like {
 	display: inline-flex;

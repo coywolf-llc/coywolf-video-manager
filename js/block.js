@@ -73,6 +73,10 @@
 		}
 	}
 
+	function escapeHtml( s ) {
+		return String( s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
+	}
+
 	/**
 	 * Video picker modal.
 	 */
@@ -167,7 +171,9 @@
 	function Edit( props ) {
 		var a = props.attributes;
 		var setAttributes = props.setAttributes;
-		var blockProps = useBlockProps();
+		var previewRef = useRef( null );
+		var patchRef = useRef( null );
+		var blockProps = useBlockProps( { ref: previewRef } );
 		var pickerState = useState( false );
 		var pickerOpen = pickerState[ 0 ];
 		var setPickerOpen = pickerState[ 1 ];
@@ -251,6 +257,12 @@
 			} );
 		}, [ isSavingPost ] );
 
+		// The effective value of an inherit-able boolean (override or default).
+		function resolvedBool( attr ) {
+			var v = a[ attr ];
+			return ( undefined === v || null === v ) ? defaultBool( attr ) : !! v;
+		}
+
 		function inheritToggle( attr, label ) {
 			var def = defaultBool( attr );
 			var isInheriting = ( undefined === a[ attr ] || null === a[ attr ] );
@@ -275,6 +287,101 @@
 		// stored block name while the lookup is still in flight.
 		var videoNameValue = null !== staged.name ? staged.name : ( null !== videoMeta.name ? videoMeta.name : ( a.videoName || '' ) );
 		var videoDescValue = null !== staged.description ? staged.description : ( null !== videoMeta.description ? videoMeta.description : '' );
+
+		// Live preview: mirror the server's caption markup client-side so name
+		// and description edits show on the block instantly instead of waiting
+		// for a ServerSideRender round-trip.
+		function patchPreview() {
+			var root = previewRef.current;
+			var figure = root ? root.querySelector( '.coywolf-cvm' ) : null;
+			if ( ! figure ) {
+				return;
+			}
+			var name = videoNameValue;
+			if ( '' === name ) {
+				// Same fallback as the server: the post/page title.
+				var editor = select( 'core/editor' );
+				name = ( editor && editor.getEditedPostAttribute ) ? ( editor.getEditedPostAttribute( 'title' ) || '' ) : '';
+			}
+			var desc = videoDescValue.trim();
+			var wantName = resolvedBool( 'showName' ) && '' !== name;
+			var wantDesc = resolvedBool( 'showDescription' ) && '' !== desc;
+			var caption = figure.querySelector( 'figcaption.coywolf-cvm-title' );
+
+			// Until the canonical lookup returns, the description is unknown;
+			// rebuilding the caption would briefly drop the server-rendered
+			// text. Patch only the name in place and leave the rest alone.
+			if ( null === staged.description && null === videoMeta.description ) {
+				var nameEl = figure.querySelector( '.coywolf-cvm-name' );
+				if ( nameEl && wantName && nameEl.textContent !== name ) {
+					nameEl.textContent = name;
+				}
+				return;
+			}
+
+			if ( ! wantName && ! wantDesc ) {
+				if ( caption ) {
+					caption.parentNode.removeChild( caption );
+				}
+				return;
+			}
+
+			var html = '';
+			if ( wantName ) {
+				html += '<strong class="coywolf-cvm-name">' + escapeHtml( name ) + '</strong>';
+			}
+			if ( wantDesc ) {
+				// Safe HTML is allowed in descriptions (as on the Edit Video
+				// page); the server sanitizes it with wp_kses_post on save.
+				html += ( '' !== html ? ' — ' : '' ) + '<span class="coywolf-cvm-desc">' + desc + '</span>';
+			}
+
+			if ( ! caption ) {
+				caption = document.createElement( 'figcaption' );
+				caption.className = 'coywolf-cvm-title';
+				figure.insertBefore( caption, figure.querySelector( '.coywolf-cvm-meta' ) );
+			}
+			// The marker keeps the MutationObserver below from looping on our
+			// own writes (innerHTML read-back may not equal what was set).
+			if ( caption.getAttribute( 'data-cvm-preview' ) !== html ) {
+				caption.setAttribute( 'data-cvm-preview', html );
+				caption.innerHTML = html;
+			}
+		}
+		patchRef.current = patchPreview;
+
+		// Re-apply after every render (typing, toggles) …
+		useEffect( function () {
+			patchPreview();
+		} );
+
+		// … and whenever ServerSideRender swaps in fresh markup, which happens
+		// outside this component's render cycle.
+		useEffect( function () {
+			var root = previewRef.current;
+			if ( ! root || ! window.MutationObserver ) {
+				return undefined;
+			}
+			var observer = new window.MutationObserver( function () {
+				if ( patchRef.current ) {
+					patchRef.current();
+				}
+			} );
+			observer.observe( root, { childList: true, subtree: true } );
+			return function () {
+				observer.disconnect();
+			};
+		}, [] );
+
+		// The description renders from its saved (option) value, not the block
+		// attribute, so leave the staged attribute out of ServerSideRender —
+		// re-fetching on description keystrokes would change nothing.
+		var ssrAttributes = {};
+		Object.keys( a ).forEach( function ( key ) {
+			if ( 'videoDescription' !== key ) {
+				ssrAttributes[ key ] = a[ key ];
+			}
+		} );
 
 		var inspector = el(
 			InspectorControls,
@@ -412,14 +519,16 @@
 			el(
 				PanelBody,
 				{ title: __( 'Appearance', 'coywolf-video-manager' ), initialOpen: false },
-				a.videoId
+				inheritToggle( 'showName', __( 'Show video name', 'coywolf-video-manager' ) ),
+				a.videoId && resolvedBool( 'showName' )
 					? el(
 						'div',
-						{ className: 'coywolf-cvm-video-fields' },
+						{ className: 'coywolf-cvm-video-field' },
 						el( TextareaControl, {
 							label: __( 'Video name', 'coywolf-video-manager' ),
 							value: videoNameValue,
 							rows: 2,
+							help: __( 'Saved to the video when the post is saved.', 'coywolf-video-manager' ),
 							__nextHasNoMarginBottom: true,
 							onChange: function ( v ) {
 								setStaged( function ( prev ) {
@@ -429,11 +538,19 @@
 								// front-end fallback) in sync.
 								setAttributes( { videoName: v } );
 							}
-						} ),
+						} )
+					)
+					: null,
+				inheritToggle( 'showDescription', __( 'Show video description', 'coywolf-video-manager' ) ),
+				a.videoId && resolvedBool( 'showDescription' )
+					? el(
+						'div',
+						{ className: 'coywolf-cvm-video-field' },
 						el( TextareaControl, {
 							label: __( 'Video description', 'coywolf-video-manager' ),
 							value: videoDescValue,
 							rows: 4,
+							help: __( 'Saved to the video when the post is saved.', 'coywolf-video-manager' ),
 							__nextHasNoMarginBottom: true,
 							onChange: function ( v ) {
 								setStaged( function ( prev ) {
@@ -443,16 +560,9 @@
 								// the post as needing a save.
 								setAttributes( { videoDescription: v } );
 							}
-						} ),
-						el(
-							'p',
-							{ className: 'components-base-control__help' },
-							__( 'Changes are saved to the video when the post is saved.', 'coywolf-video-manager' )
-						)
+						} )
 					)
 					: null,
-				inheritToggle( 'showName', __( 'Show video name', 'coywolf-video-manager' ) ),
-				inheritToggle( 'showDescription', __( 'Show video description', 'coywolf-video-manager' ) ),
 				el( SelectControl, {
 					label: __( 'Name & description alignment', 'coywolf-video-manager' ),
 					value: a.contentAlign || '',
@@ -538,7 +648,7 @@
 		} else {
 			body = el( ServerSideRender, {
 				block: 'coywolf/video',
-				attributes: a
+				attributes: ssrAttributes
 			} );
 		}
 
