@@ -45,16 +45,25 @@ class Coywolf_CVM_REST {
 	private $index;
 
 	/**
+	 * Caption schema cache (transcripts + downloadable VTT tracks).
+	 *
+	 * @var Coywolf_CVM_Captions
+	 */
+	private $captions;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Coywolf_CVM_Cloudflare $cloudflare API client.
 	 * @param Coywolf_CVM_Stats      $stats      Stats store.
 	 * @param Coywolf_CVM_Index      $index      Usage index.
+	 * @param Coywolf_CVM_Captions   $captions   Caption schema cache.
 	 */
-	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Stats $stats, Coywolf_CVM_Index $index ) {
+	public function __construct( Coywolf_CVM_Cloudflare $cloudflare, Coywolf_CVM_Stats $stats, Coywolf_CVM_Index $index, Coywolf_CVM_Captions $captions ) {
 		$this->cloudflare = $cloudflare;
 		$this->stats      = $stats;
 		$this->index      = $index;
+		$this->captions   = $captions;
 
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
@@ -444,6 +453,9 @@ class Coywolf_CVM_REST {
 		if ( is_wp_error( $captions ) ) {
 			return $captions;
 		}
+		// Picks up captions managed in the Cloudflare dashboard and finished
+		// generations whenever the Edit Video screen loads.
+		$this->captions->sync_if_changed( (string) $request['uid'], $captions );
 		return rest_ensure_response( array( 'captions' => $captions ) );
 	}
 
@@ -462,6 +474,7 @@ class Coywolf_CVM_REST {
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
+		$this->captions->refresh( (string) $request['uid'] );
 		return rest_ensure_response( $result );
 	}
 
@@ -476,6 +489,8 @@ class Coywolf_CVM_REST {
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
+		// Generation runs on Cloudflare's side; the refresh polls until ready.
+		$this->captions->schedule_refresh( (string) $request['uid'], 2 * MINUTE_IN_SECONDS );
 		return rest_ensure_response( $result );
 	}
 
@@ -490,6 +505,7 @@ class Coywolf_CVM_REST {
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
+		$this->captions->refresh( (string) $request['uid'] );
 		return rest_ensure_response( array( 'deleted' => true ) );
 	}
 

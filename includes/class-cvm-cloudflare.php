@@ -406,6 +406,55 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/**
+	 * Download a caption's raw WebVTT through the authenticated API.
+	 *
+	 * @param string $uid  Video UID.
+	 * @param string $lang BCP-47 language code.
+	 * @return string|WP_Error Raw VTT contents.
+	 */
+	public function caption_vtt( $uid, $lang ) {
+		$token = $this->get_token();
+		if ( '' === $token ) {
+			return new WP_Error( 'coywolf_cvm_no_token', __( 'No Cloudflare API token is configured.', 'coywolf-video-manager' ) );
+		}
+		$url      = $this->stream_url( '/' . rawurlencode( $uid ) . '/captions/' . rawurlencode( $lang ) . '/vtt' );
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 15,
+				'headers' => array( 'Authorization' => 'Bearer ' . $token ),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error(
+				'coywolf_cvm_http_error',
+				/* translators: %d: HTTP status code. */
+				sprintf( __( 'Cloudflare returned an unexpected response (HTTP %d).', 'coywolf-video-manager' ), $code ),
+				array( 'status' => $code )
+			);
+		}
+		return (string) wp_remote_retrieve_body( $response );
+	}
+
+	/**
+	 * Public (unauthenticated) URL candidates where Cloudflare's delivery
+	 * hostname may serve a caption's WebVTT directly. Callers must verify a
+	 * candidate actually responds with VTT before using it.
+	 *
+	 * @param string $uid  Video UID.
+	 * @param string $lang BCP-47 language code.
+	 * @return string[]
+	 */
+	public function caption_public_urls( $uid, $lang ) {
+		$base = $this->playback_base( $uid ) . '/captions/' . rawurlencode( $lang );
+		return array( $base, $base . '/vtt' );
+	}
+
+	/**
 	 * Delete a caption language.
 	 *
 	 * @param string $uid  Video UID.

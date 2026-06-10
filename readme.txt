@@ -19,7 +19,7 @@ Features:
 * Video block — search your entire Stream library and embed a responsive video in a figure/figcaption, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
 * Cloudflare Stream player — the official Stream player, with an optional play-button accent color.
 * Likes, views & upload date — a YouTube-style row under each video. Cloudflare's API does not expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
-* Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts.
+* Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts. Videos with captions also get a full plain-text transcript and a downloadable caption VTT track (linked straight from Cloudflare, or mirrored into the uploads folder when Cloudflare doesn't serve it publicly).
 * All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
 * Edit Video screen — rename, add a description (used in schema + the sitemap), set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image at the recommended size), copy the video ID, and add or AI-generate captions.
 * Upload to Cloudflare — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.

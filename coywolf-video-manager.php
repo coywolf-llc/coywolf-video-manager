@@ -48,6 +48,7 @@ require_once __DIR__ . '/includes/class-cvm-cloudflare.php';
 require_once __DIR__ . '/includes/class-cvm-stats.php';
 require_once __DIR__ . '/includes/class-cvm-index.php';
 require_once __DIR__ . '/includes/class-cvm-settings.php';
+require_once __DIR__ . '/includes/class-cvm-captions.php';
 require_once __DIR__ . '/includes/class-cvm-rest.php';
 require_once __DIR__ . '/includes/class-cvm-block.php';
 require_once __DIR__ . '/includes/class-cvm-docs.php';
