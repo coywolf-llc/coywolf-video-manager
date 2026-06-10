@@ -554,7 +554,7 @@ class Coywolf_CVM_Admin {
 				<tr>
 					<th scope="row"><?php esc_html_e( 'MP4 download', 'coywolf-video-manager' ); ?></th>
 					<td>
-						<div id="cvm-mp4" class="coywolf-cvm-mp4"><span class="spinner is-active" style="float:none;margin:0;"></span></div>
+						<div id="cvm-mp4" class="coywolf-cvm-mp4" role="status" aria-live="polite"><span class="spinner is-active" style="float:none;margin:0;"></span></div>
 						<p class="description"><?php esc_html_e( 'Generates a downloadable MP4 of this video. Once ready, it is also used as the direct video URL in the schema markup and the XML sitemap. Each download counts toward Cloudflare minutes delivered.', 'coywolf-video-manager' ); ?></p>
 					</td>
 				</tr>
@@ -650,7 +650,7 @@ class Coywolf_CVM_Admin {
 			</p>
 			<?php if ( $limit > 0 ) : ?>
 				<?php $pct = min( 100, (int) round( 100 * $used / max( 1, $limit ) ) ); ?>
-				<div class="coywolf-cvm-storage-bar"><span style="width:<?php echo esc_attr( $pct ); ?>%;"></span></div>
+				<div class="coywolf-cvm-storage-bar" aria-hidden="true"><span style="width:<?php echo esc_attr( $pct ); ?>%;"></span></div>
 			<?php endif; ?>
 		</div>
 		<?php
