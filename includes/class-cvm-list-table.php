@@ -299,6 +299,18 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 
 		$force = isset( $_REQUEST['cvm_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
+		// Always show fresh data on the list screen (lightly throttled, so
+		// rapid sorting/paging rides the cache). The webhook covers uploads
+		// finishing, but Cloudflare sends no event for dashboard-side deletes
+		// or renames — without this they would linger for the five-minute
+		// list cache.
+		if ( ! $force && false === get_transient( 'coywolf_cvm_list_fresh' ) ) {
+			$force = true;
+		}
+		if ( $force ) {
+			set_transient( 'coywolf_cvm_list_fresh', 1, 15 );
+		}
+
 		$videos = $this->cloudflare->list_videos( array( 'force' => $force ) );
 		if ( is_wp_error( $videos ) ) {
 			$this->error = $videos;
