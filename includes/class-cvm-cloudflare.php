@@ -331,10 +331,139 @@ class Coywolf_CVM_Cloudflare {
 	public function delete_video( $uid ) {
 		$response = $this->request( 'DELETE', $this->stream_url( '/' . rawurlencode( $uid ) ), array( 'timeout' => 30 ) );
 		$this->flush_list_cache();
+		$this->flush_storage_usage();
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
 		return true;
+	}
+
+	/**
+	 * Import a video into Stream from a publicly accessible URL (Cloudflare
+	 * fetches it server-side; no browser upload involved).
+	 *
+	 * @param string $url  Source video URL.
+	 * @param array  $opts meta, creator, allowedOrigins, thumbnailTimestampPct.
+	 * @return array|WP_Error The new (still processing) video object.
+	 */
+	public function copy_from_url( $url, $opts = array() ) {
+		$body     = array_merge( array( 'url' => $url ), $opts );
+		$response = $this->request(
+			'POST',
+			$this->stream_url( '/copy' ),
+			array(
+				'body'    => $body,
+				'timeout' => 30,
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$this->flush_list_cache();
+		$this->flush_storage_usage();
+		return isset( $response['result'] ) ? $response['result'] : array();
+	}
+
+	/**
+	 * Create a one-time TUS (resumable) direct creator upload. The browser
+	 * then PATCHes file chunks straight to the returned URL without ever
+	 * seeing the API token. Unlike the basic direct upload, TUS has no
+	 * 200 MB ceiling.
+	 *
+	 * @param int    $length   File size in bytes.
+	 * @param array  $metadata Upload-Metadata pairs (e.g. name, maxDurationSeconds).
+	 * @param string $creator  Optional creator id.
+	 * @return array|WP_Error { uploadURL, uid }
+	 */
+	public function tus_create( $length, $metadata = array(), $creator = '' ) {
+		$token = $this->get_token();
+		if ( '' === $token ) {
+			return new WP_Error( 'coywolf_cvm_no_token', __( 'No Cloudflare API token is configured.', 'coywolf-video-manager' ) );
+		}
+
+		$pairs = array();
+		foreach ( $metadata as $key => $value ) {
+			if ( '' === (string) $value ) {
+				continue;
+			}
+			// The TUS protocol requires metadata values base64-encoded.
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			$pairs[] = $key . ' ' . base64_encode( (string) $value );
+		}
+
+		$headers = array(
+			'Authorization' => 'Bearer ' . $token,
+			'Tus-Resumable' => '1.0.0',
+			'Upload-Length' => (string) max( 1, (int) $length ),
+		);
+		if ( ! empty( $pairs ) ) {
+			$headers['Upload-Metadata'] = implode( ',', $pairs );
+		}
+		if ( '' !== $creator ) {
+			$headers['Upload-Creator'] = $creator;
+		}
+
+		$response = wp_remote_post(
+			$this->stream_url( '?direct_user=true' ),
+			array(
+				'timeout' => 30,
+				'headers' => $headers,
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$code     = (int) wp_remote_retrieve_response_code( $response );
+		$location = wp_remote_retrieve_header( $response, 'location' );
+		$uid      = wp_remote_retrieve_header( $response, 'stream-media-id' );
+		if ( $code < 200 || $code >= 300 || empty( $location ) ) {
+			return new WP_Error(
+				'coywolf_cvm_http_error',
+				/* translators: %d: HTTP status code. */
+				sprintf( __( 'Cloudflare returned an unexpected response (HTTP %d).', 'coywolf-video-manager' ), $code ),
+				array( 'status' => $code )
+			);
+		}
+		$this->flush_list_cache();
+		$this->flush_storage_usage();
+		return array(
+			'uploadURL' => is_array( $location ) ? (string) reset( $location ) : (string) $location,
+			'uid'       => is_array( $uid ) ? (string) reset( $uid ) : (string) $uid,
+		);
+	}
+
+	/**
+	 * Account-wide Stream storage usage, cached for five minutes.
+	 *
+	 * @param bool $force Bypass the cache.
+	 * @return array|WP_Error { videoCount, totalStorageMinutes, totalStorageMinutesLimit }
+	 */
+	public function storage_usage( $force = false ) {
+		if ( ! $force ) {
+			$cached = get_transient( 'coywolf_cvm_storage_usage' );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+		}
+		$response = $this->request( 'GET', $this->stream_url( '/storage-usage' ) );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$result = isset( $response['result'] ) && is_array( $response['result'] ) ? $response['result'] : array();
+		$usage  = array(
+			'videoCount'               => isset( $result['videoCount'] ) ? (int) $result['videoCount'] : 0,
+			'totalStorageMinutes'      => isset( $result['totalStorageMinutes'] ) ? (int) $result['totalStorageMinutes'] : 0,
+			'totalStorageMinutesLimit' => isset( $result['totalStorageMinutesLimit'] ) ? (int) $result['totalStorageMinutesLimit'] : 0,
+		);
+		set_transient( 'coywolf_cvm_storage_usage', $usage, 5 * MINUTE_IN_SECONDS );
+		return $usage;
+	}
+
+	/**
+	 * Drop the cached storage usage (after uploads, imports, and deletes).
+	 */
+	public function flush_storage_usage() {
+		delete_transient( 'coywolf_cvm_storage_usage' );
 	}
 
 	/**
