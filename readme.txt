@@ -57,7 +57,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 == Privacy & third-party services ==
 
-This plugin connects WordPress to Cloudflare Stream, a third-party service, on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
+Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to Cloudflare Stream on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
 
 == Styling with CSS ==
 
