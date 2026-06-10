@@ -94,13 +94,13 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'cb'     => '<input type="checkbox" />',
-			'name'   => __( 'Name', 'coywolf-video-manager' ),
-			'status' => __( 'Status', 'coywolf-video-manager' ),
-			'plays'  => __( 'Plays', 'coywolf-video-manager' ),
-			'likes'  => __( 'Likes', 'coywolf-video-manager' ),
-			'posts'  => __( 'Posts', 'coywolf-video-manager' ),
-			'pages'  => __( 'Pages', 'coywolf-video-manager' ),
+			'cb'      => '<input type="checkbox" />',
+			'name'    => __( 'Name', 'coywolf-video-manager' ),
+			'created' => __( 'Created', 'coywolf-video-manager' ),
+			'plays'   => __( 'Plays', 'coywolf-video-manager' ),
+			'likes'   => __( 'Likes', 'coywolf-video-manager' ),
+			'posts'   => __( 'Posts', 'coywolf-video-manager' ),
+			'pages'   => __( 'Pages', 'coywolf-video-manager' ),
 		);
 	}
 
@@ -111,11 +111,13 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 */
 	public function get_sortable_columns() {
 		return array(
-			'name'  => array( 'name', false ),
-			'plays' => array( 'plays', false ),
-			'likes' => array( 'likes', false ),
-			'posts' => array( 'posts', false ),
-			'pages' => array( 'pages', false ),
+			'name'    => array( 'name', false ),
+			// True: the default view is already sorted by this, descending.
+			'created' => array( 'created', true ),
+			'plays'   => array( 'plays', false ),
+			'likes'   => array( 'likes', false ),
+			'posts'   => array( 'posts', false ),
+			'pages'   => array( 'pages', false ),
 		);
 	}
 
@@ -211,17 +213,16 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * Status column.
+	 * Created column: Cloudflare upload time, in the site timezone and format.
 	 *
 	 * @param array $item Row.
 	 * @return string
 	 */
-	public function column_status( $item ) {
-		if ( $item['ready'] ) {
-			return '<span style="color:#1a7f37;">' . esc_html__( 'Ready', 'coywolf-video-manager' ) . '</span>';
+	public function column_created( $item ) {
+		if ( empty( $item['created_ts'] ) ) {
+			return '&#8212;';
 		}
-		$state = '' !== $item['state'] ? $item['state'] : __( 'processing', 'coywolf-video-manager' );
-		return '<span style="color:#996800;">' . esc_html( ucfirst( $state ) ) . '</span>';
+		return esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $item['created_ts'] ) );
 	}
 
 	/**
@@ -363,14 +364,13 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			$uid    = (string) $video['uid'];
 			$uids[] = $uid;
 			$rows[] = array(
-				'uid'   => $uid,
-				'name'  => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
-				'ready' => ! empty( $video['readyToStream'] ),
-				'state' => isset( $video['status']['state'] ) ? (string) $video['status']['state'] : '',
-				'plays' => 0,
-				'likes' => 0,
-				'posts' => 0,
-				'pages' => 0,
+				'uid'        => $uid,
+				'name'       => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
+				'created_ts' => isset( $video['created'] ) ? (int) strtotime( (string) $video['created'] ) : 0,
+				'plays'      => 0,
+				'likes'      => 0,
+				'posts'      => 0,
+				'pages'      => 0,
 			);
 		}
 
@@ -416,22 +416,32 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			);
 		}
 
-		// Sort.
+		// Sort. Default: newest first by Cloudflare creation time.
 		$orderby = isset( $_REQUEST['orderby'] ) ? sanitize_key( wp_unslash( $_REQUEST['orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$order   = ( isset( $_REQUEST['order'] ) && 'desc' === strtolower( sanitize_key( wp_unslash( $_REQUEST['order'] ) ) ) ) ? 'desc' : 'asc'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( in_array( $orderby, array( 'name', 'plays', 'likes', 'posts', 'pages' ), true ) ) {
-			usort(
-				$rows,
-				static function ( $a, $b ) use ( $orderby ) {
-					if ( 'name' === $orderby ) {
-						return strcasecmp( $a['name'], $b['name'] );
-					}
-					return $a[ $orderby ] <=> $b[ $orderby ];
-				}
-			);
-			if ( 'desc' === $order ) {
-				$rows = array_reverse( $rows );
+		$order   = isset( $_REQUEST['order'] ) ? strtolower( sanitize_key( wp_unslash( $_REQUEST['order'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! in_array( $orderby, array( 'name', 'created', 'plays', 'likes', 'posts', 'pages' ), true ) ) {
+			$orderby = 'created';
+			if ( '' === $order ) {
+				$order = 'desc';
 			}
+		}
+		if ( ! in_array( $order, array( 'asc', 'desc' ), true ) ) {
+			$order = 'asc';
+		}
+		usort(
+			$rows,
+			static function ( $a, $b ) use ( $orderby ) {
+				if ( 'name' === $orderby ) {
+					return strcasecmp( $a['name'], $b['name'] );
+				}
+				if ( 'created' === $orderby ) {
+					return $a['created_ts'] <=> $b['created_ts'];
+				}
+				return $a[ $orderby ] <=> $b[ $orderby ];
+			}
+		);
+		if ( 'desc' === $order ) {
+			$rows = array_reverse( $rows );
 		}
 
 		// Paginate in PHP.
