@@ -168,7 +168,11 @@ class Coywolf_CVM_Admin {
 						'generating'     => __( 'Generating captions — this can take a few minutes.', 'coywolf-video-manager' ),
 						'pickFile'       => __( 'Choose a .vtt file first.', 'coywolf-video-manager' ),
 						'pickVideo'      => __( 'Choose a video file first.', 'coywolf-video-manager' ),
+						'pickUrl'        => __( 'Enter a video URL first.', 'coywolf-video-manager' ),
 						'preparing'      => __( 'Preparing upload…', 'coywolf-video-manager' ),
+						'uploading'      => __( 'Uploading…', 'coywolf-video-manager' ),
+						'retrying'       => __( 'Connection hiccup — resuming upload…', 'coywolf-video-manager' ),
+						'fetching'       => __( 'Cloudflare is fetching the video from the URL…', 'coywolf-video-manager' ),
 						'processing'     => __( 'Uploaded. Cloudflare is processing the video…', 'coywolf-video-manager' ),
 						'uploadFailed'   => __( 'Upload failed.', 'coywolf-video-manager' ),
 						'stillProcessing' => __( 'Still processing — check All Videos shortly.', 'coywolf-video-manager' ),
@@ -402,11 +406,17 @@ class Coywolf_CVM_Admin {
 			return;
 		}
 		?>
+		<?php $this->render_storage_usage(); ?>
 		<div class="coywolf-cvm-uploader" data-list-url="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ); ?>">
 			<div class="coywolf-cvm-edit-field">
 				<label for="cvm-up-file"><?php esc_html_e( 'Video file', 'coywolf-video-manager' ); ?></label>
 				<input type="file" id="cvm-up-file" accept="video/*" />
-				<p class="description"><?php esc_html_e( 'Up to 200 MB upload directly here. Larger files can be added from the Cloudflare dashboard.', 'coywolf-video-manager' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Large files are supported — the upload is sent in chunks and resumes after connection hiccups.', 'coywolf-video-manager' ); ?></p>
+			</div>
+			<div class="coywolf-cvm-edit-field">
+				<label for="cvm-up-url"><?php esc_html_e( 'Or add from a URL', 'coywolf-video-manager' ); ?></label>
+				<input type="url" id="cvm-up-url" class="regular-text" placeholder="https://example.com/video.mp4" />
+				<p class="description"><?php esc_html_e( 'Cloudflare fetches the video directly from a publicly accessible URL — nothing passes through this site.', 'coywolf-video-manager' ); ?></p>
 			</div>
 			<div class="coywolf-cvm-edit-field">
 				<label for="cvm-up-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label>
@@ -422,6 +432,7 @@ class Coywolf_CVM_Admin {
 			</div>
 			<p>
 				<button type="button" class="button button-primary" id="cvm-up-start"><?php esc_html_e( 'Upload to Cloudflare', 'coywolf-video-manager' ); ?></button>
+				<button type="button" class="button" id="cvm-up-url-start"><?php esc_html_e( 'Add from URL', 'coywolf-video-manager' ); ?></button>
 			</p>
 			<div class="coywolf-cvm-progress"><div class="coywolf-cvm-progress-bar"></div></div>
 			<div class="coywolf-cvm-upload-status" role="status" aria-live="polite"></div>
@@ -581,6 +592,52 @@ class Coywolf_CVM_Admin {
 		</div>
 		<?php
 		echo '</div>';
+	}
+
+	/**
+	 * Account storage summary for the Upload screen ("X of Y minutes used").
+	 * Silent when the lookup fails — uploading works fine without it.
+	 */
+	private function render_storage_usage() {
+		$usage = $this->cloudflare->storage_usage();
+		if ( is_wp_error( $usage ) ) {
+			return;
+		}
+		$used  = (int) $usage['totalStorageMinutes'];
+		$limit = (int) $usage['totalStorageMinutesLimit'];
+		$count = (int) $usage['videoCount'];
+
+		/* translators: %s: number of videos. */
+		$videos_text = sprintf( _n( '%s video', '%s videos', $count, 'coywolf-video-manager' ), number_format_i18n( $count ) );
+		?>
+		<div class="coywolf-cvm-storage">
+			<strong><?php esc_html_e( 'Cloudflare Stream storage', 'coywolf-video-manager' ); ?></strong>
+			<p class="description">
+			<?php
+			if ( $limit > 0 ) {
+				printf(
+					/* translators: 1: minutes used, 2: minutes included in the plan, 3: "N videos". */
+					esc_html__( '%1$s of %2$s minutes used · %3$s', 'coywolf-video-manager' ),
+					esc_html( number_format_i18n( $used ) ),
+					esc_html( number_format_i18n( $limit ) ),
+					esc_html( $videos_text )
+				);
+			} else {
+				printf(
+					/* translators: 1: minutes stored, 2: "N videos". */
+					esc_html__( '%1$s minutes stored · %2$s', 'coywolf-video-manager' ),
+					esc_html( number_format_i18n( $used ) ),
+					esc_html( $videos_text )
+				);
+			}
+			?>
+			</p>
+			<?php if ( $limit > 0 ) : ?>
+				<?php $pct = min( 100, (int) round( 100 * $used / max( 1, $limit ) ) ); ?>
+				<div class="coywolf-cvm-storage-bar"><span style="width:<?php echo esc_attr( $pct ); ?>%;"></span></div>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/**

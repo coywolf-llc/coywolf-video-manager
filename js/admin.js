@@ -438,11 +438,154 @@
 			return;
 		}
 		var startBtn = document.getElementById( 'cvm-up-start' );
+		var urlBtn = document.getElementById( 'cvm-up-url-start' );
 		var statusEl = root.querySelector( '.coywolf-cvm-upload-status' );
 		var progress = root.querySelector( '.coywolf-cvm-progress' );
 		var bar = root.querySelector( '.coywolf-cvm-progress-bar' );
 		var listUrl = root.getAttribute( 'data-list-url' );
 
+		// 50 MB — a multiple of 256 KiB, as Cloudflare's TUS endpoint requires.
+		var TUS_CHUNK = 52428800;
+
+		function fieldValue( id ) {
+			var el = document.getElementById( id );
+			return el ? el.value.trim() : '';
+		}
+
+		function origins() {
+			return fieldValue( 'cvm-up-origins' )
+				.split( /\n+/ ).map( function ( s ) { return s.trim(); } ).filter( Boolean );
+		}
+
+		function setBusy( busy ) {
+			startBtn.disabled = busy;
+			if ( urlBtn ) {
+				urlBtn.disabled = busy;
+			}
+		}
+
+		function fail( message ) {
+			setBusy( false );
+			statusEl.textContent = '✗ ' + message;
+		}
+
+		function pollStatus( uid, tries ) {
+			var editUrl = listUrl + '&action=edit&uid=' + encodeURIComponent( uid );
+			if ( tries > 60 ) {
+				// Processing is taking a while; send them to the Edit page anyway.
+				window.location = editUrl;
+				return;
+			}
+			rest( '/videos/' + encodeURIComponent( uid ) ).then( function ( v ) {
+				if ( v && ( v.ready || 'error' === v.state ) ) {
+					bar.style.width = '100%';
+					window.location = editUrl;
+				} else {
+					window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
+				}
+			} ).catch( function () {
+				window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
+			} );
+		}
+
+		// TUS metadata only carries the name; apply creator/allowed origins
+		// through the regular update route, then wait for processing.
+		function applyAndFinish( uid ) {
+			var data = {};
+			var creator = fieldValue( 'cvm-up-creator' );
+			var allowed = origins();
+			if ( creator ) {
+				data.creator = creator;
+			}
+			if ( allowed.length ) {
+				data.allowedOrigins = allowed;
+			}
+			var apply = Object.keys( data ).length
+				? rest( '/videos/' + encodeURIComponent( uid ), 'POST', data ).catch( function () {} )
+				: Promise.resolve();
+			apply.then( function () {
+				pollStatus( uid, 0 );
+			} );
+		}
+
+		// Minimal TUS 1.0.0 client: sequential PATCH chunks; on a hiccup,
+		// HEAD re-asks Cloudflare how much it has and resumes from there.
+		function tusUpload( uploadURL, file, done, error ) {
+			var offset = 0;
+			var attempts = 0;
+
+			function report( loaded ) {
+				var total = Math.min( file.size, offset + loaded );
+				bar.style.width = ( file.size > 0 ? Math.round( ( total / file.size ) * 100 ) : 0 ) + '%';
+			}
+
+			function resync() {
+				var xhr = new XMLHttpRequest();
+				xhr.open( 'HEAD', uploadURL, true );
+				xhr.setRequestHeader( 'Tus-Resumable', '1.0.0' );
+				xhr.onload = function () {
+					var at = parseInt( xhr.getResponseHeader( 'Upload-Offset' ), 10 );
+					if ( ! isNaN( at ) ) {
+						offset = at;
+					}
+					sendChunk();
+				};
+				xhr.onerror = function () {
+					sendChunk();
+				};
+				xhr.send();
+			}
+
+			function retry() {
+				attempts += 1;
+				if ( attempts > 5 ) {
+					error();
+					return;
+				}
+				statusEl.textContent = i18n.retrying || 'Connection hiccup — resuming upload…';
+				window.setTimeout( resync, 2000 * attempts );
+			}
+
+			function sendChunk() {
+				if ( offset >= file.size ) {
+					done();
+					return;
+				}
+				var xhr = new XMLHttpRequest();
+				xhr.open( 'PATCH', uploadURL, true );
+				xhr.setRequestHeader( 'Tus-Resumable', '1.0.0' );
+				xhr.setRequestHeader( 'Upload-Offset', String( offset ) );
+				xhr.setRequestHeader( 'Content-Type', 'application/offset+octet-stream' );
+				xhr.upload.onprogress = function ( e ) {
+					if ( e.lengthComputable ) {
+						report( e.loaded );
+					}
+				};
+				xhr.onload = function () {
+					if ( xhr.status >= 200 && xhr.status < 300 ) {
+						attempts = 0;
+						statusEl.textContent = i18n.uploading || 'Uploading…';
+						var at = parseInt( xhr.getResponseHeader( 'Upload-Offset' ), 10 );
+						if ( isNaN( at ) ) {
+							resync();
+							return;
+						}
+						offset = at;
+						sendChunk();
+					} else {
+						retry();
+					}
+				};
+				xhr.onerror = function () {
+					retry();
+				};
+				xhr.send( file.slice( offset, Math.min( file.size, offset + TUS_CHUNK ) ) );
+			}
+
+			sendChunk();
+		}
+
+		// Upload a local file (chunked + resumable; no 200 MB ceiling).
 		startBtn.addEventListener( 'click', function () {
 			var fileInput = document.getElementById( 'cvm-up-file' );
 			var file = fileInput.files && fileInput.files[ 0 ];
@@ -450,92 +593,59 @@
 				statusEl.textContent = i18n.pickVideo || 'Choose a video file first.';
 				return;
 			}
-			var origins = document.getElementById( 'cvm-up-origins' ).value
-				.split( /\n+/ ).map( function ( s ) { return s.trim(); } ).filter( Boolean );
-			// A chosen name; Cloudflare's basic upload overwrites the video name
-			// with the file name, so we re-apply this once processing finishes.
-			var chosenName = document.getElementById( 'cvm-up-name' ).value.trim();
-			var opts = {
-				name: chosenName || file.name,
-				creator: document.getElementById( 'cvm-up-creator' ).value,
-				allowedOrigins: origins,
-				maxDurationSeconds: 21600
-			};
-
-			startBtn.disabled = true;
+			setBusy( true );
 			statusEl.textContent = i18n.preparing || 'Preparing upload…';
 
-			rest( '/direct-upload', 'POST', opts ).then( function ( res ) {
+			rest( '/tus-upload', 'POST', {
+				length: file.size,
+				name: fieldValue( 'cvm-up-name' ) || file.name,
+				creator: fieldValue( 'cvm-up-creator' )
+			} ).then( function ( res ) {
 				if ( ! res || ! res.uploadURL || ! res.uid ) {
 					throw new Error( 'No upload URL returned.' );
 				}
-				uploadFile( res.uploadURL, file, res.uid );
-			} ).catch( function ( e ) {
-				startBtn.disabled = false;
-				statusEl.textContent = '✗ ' + errMsg( e );
-			} );
-
-			function uploadFile( url, file, uid ) {
-				var fd = new FormData();
-				fd.append( 'file', file );
-				var xhr = new XMLHttpRequest();
-				xhr.open( 'POST', url, true );
 				progress.style.display = 'block';
-				xhr.upload.onprogress = function ( e ) {
-					if ( e.lengthComputable ) {
-						bar.style.width = Math.round( ( e.loaded / e.total ) * 100 ) + '%';
-					}
-				};
-				xhr.onload = function () {
-					if ( xhr.status >= 200 && xhr.status < 300 ) {
-						statusEl.textContent = i18n.processing || 'Uploaded. Cloudflare is processing the video…';
-						pollStatus( uid, 0 );
-					} else {
-						startBtn.disabled = false;
-						statusEl.textContent = '✗ ' + ( i18n.uploadFailed || 'Upload failed.' ) + ' (' + xhr.status + ')';
-					}
-				};
-				xhr.onerror = function () {
-					startBtn.disabled = false;
-					statusEl.textContent = '✗ ' + ( i18n.uploadFailed || 'Upload failed.' );
-				};
-				xhr.send( fd );
-			}
-
-			function pollStatus( uid, tries ) {
-				var editUrl = listUrl + '&action=edit&uid=' + encodeURIComponent( uid );
-				if ( tries > 60 ) {
-					// Processing is taking a while; send them to the Edit page anyway.
-					finish( uid, editUrl );
-					return;
-				}
-				rest( '/videos/' + encodeURIComponent( uid ) ).then( function ( v ) {
-					if ( v && ( v.ready || 'error' === v.state ) ) {
-						bar.style.width = '100%';
-						finish( uid, editUrl );
-					} else {
-						window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
-					}
-				} ).catch( function () {
-					window.setTimeout( function () { pollStatus( uid, tries + 1 ); }, 3000 );
+				statusEl.textContent = i18n.uploading || 'Uploading…';
+				tusUpload( res.uploadURL, file, function () {
+					statusEl.textContent = i18n.processing || 'Uploaded. Cloudflare is processing the video…';
+					applyAndFinish( res.uid );
+				}, function () {
+					fail( i18n.uploadFailed || 'Upload failed.' );
 				} );
-			}
-
-			// Re-apply the chosen name (Cloudflare overwrote it with the file
-			// name during upload), then go to the Edit screen. If no name was
-			// given, the file name stays as the fallback.
-			function finish( uid, editUrl ) {
-				if ( ! chosenName ) {
-					window.location = editUrl;
-					return;
-				}
-				rest( '/videos/' + encodeURIComponent( uid ), 'POST', { name: chosenName } ).then( function () {
-					window.location = editUrl;
-				} ).catch( function () {
-					window.location = editUrl;
-				} );
-			}
+			} ).catch( function ( e ) {
+				fail( errMsg( e ) );
+			} );
 		} );
+
+		// Import from a URL: Cloudflare fetches it server-side (name, creator,
+		// and origins all travel with the copy request itself).
+		if ( urlBtn ) {
+			urlBtn.addEventListener( 'click', function () {
+				var url = fieldValue( 'cvm-up-url' );
+				if ( ! url ) {
+					statusEl.textContent = i18n.pickUrl || 'Enter a video URL first.';
+					return;
+				}
+				setBusy( true );
+				statusEl.textContent = i18n.fetching || 'Cloudflare is fetching the video from the URL…';
+
+				rest( '/copy', 'POST', {
+					url: url,
+					name: fieldValue( 'cvm-up-name' ),
+					creator: fieldValue( 'cvm-up-creator' ),
+					allowedOrigins: origins()
+				} ).then( function ( v ) {
+					if ( ! v || ! v.uid ) {
+						throw new Error( 'No video returned.' );
+					}
+					progress.style.display = 'block';
+					statusEl.textContent = i18n.processing || 'Cloudflare is processing the video…';
+					pollStatus( v.uid, 0 );
+				} ).catch( function ( e ) {
+					fail( errMsg( e ) );
+				} );
+			} );
+		}
 	}
 
 	onReady( function () {

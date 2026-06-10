@@ -130,6 +130,26 @@ class Coywolf_CVM_REST {
 
 		register_rest_route(
 			self::NS,
+			'/tus-upload',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'create_tus_upload' ),
+				'permission_callback' => $admin,
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/copy',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'copy_video' ),
+				'permission_callback' => $admin,
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/videos/(?P<uid>[A-Za-z0-9_-]+)/captions',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -436,6 +456,76 @@ class Coywolf_CVM_REST {
 			return $result;
 		}
 		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * Create a one-time TUS (resumable) upload URL for the admin uploader.
+	 * The browser PATCHes the file to Cloudflare in chunks; the video's name
+	 * rides along as TUS metadata, and creator/allowedOrigins are applied by
+	 * the client once processing finishes (via the regular update route).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function create_tus_upload( $request ) {
+		$params = $request->get_json_params();
+		if ( ! is_array( $params ) ) {
+			$params = $request->get_params();
+		}
+
+		$length = isset( $params['length'] ) ? (int) $params['length'] : 0;
+		if ( $length < 1 ) {
+			return new WP_Error( 'coywolf_cvm_bad_length', __( 'The upload size is missing.', 'coywolf-video-manager' ), array( 'status' => 400 ) );
+		}
+
+		$metadata = array( 'maxDurationSeconds' => 21600 );
+		if ( ! empty( $params['name'] ) ) {
+			$metadata['name'] = sanitize_text_field( $params['name'] );
+		}
+		$creator = isset( $params['creator'] ) ? sanitize_text_field( $params['creator'] ) : '';
+
+		$result = $this->cloudflare->tus_create( $length, $metadata, $creator );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * Import a video from a publicly accessible URL (Cloudflare fetches it
+	 * server-side).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function copy_video( $request ) {
+		$params = $request->get_json_params();
+		if ( ! is_array( $params ) ) {
+			$params = $request->get_params();
+		}
+
+		$url = isset( $params['url'] ) ? esc_url_raw( (string) $params['url'] ) : '';
+		if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
+			return new WP_Error( 'coywolf_cvm_bad_url', __( 'Enter a valid, publicly accessible video URL.', 'coywolf-video-manager' ), array( 'status' => 400 ) );
+		}
+
+		$opts = array();
+		if ( ! empty( $params['name'] ) ) {
+			$opts['meta'] = array( 'name' => sanitize_text_field( $params['name'] ) );
+		}
+		if ( ! empty( $params['creator'] ) ) {
+			$opts['creator'] = sanitize_text_field( $params['creator'] );
+		}
+		if ( ! empty( $params['allowedOrigins'] ) ) {
+			$origins = is_array( $params['allowedOrigins'] ) ? $params['allowedOrigins'] : preg_split( '/[\s,]+/', (string) $params['allowedOrigins'] );
+			$opts['allowedOrigins'] = array_values( array_filter( array_map( 'sanitize_text_field', (array) $origins ) ) );
+		}
+
+		$video = $this->cloudflare->copy_from_url( $url, $opts );
+		if ( is_wp_error( $video ) ) {
+			return $video;
+		}
+		return rest_ensure_response( $this->normalize_video( $video ) );
 	}
 
 	/* --------------------------------------------------------------------- *
