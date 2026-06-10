@@ -560,11 +560,14 @@ class Coywolf_CVM_Cloudflare {
 	 * Thumbnail (poster) URL.
 	 *
 	 * @param string $playback_id UID or signed token.
-	 * @param array  $params      time, height, width, fit.
+	 * @param array  $params      time, height, width, fit; gif also takes
+	 *                            duration and fps.
+	 * @param string $format      'jpg' (default) or 'gif' (animated).
 	 * @return string
 	 */
-	public function thumbnail_url( $playback_id, $params = array() ) {
-		$url    = $this->playback_base( $playback_id ) . '/thumbnails/thumbnail.jpg';
+	public function thumbnail_url( $playback_id, $params = array(), $format = 'jpg' ) {
+		$format = 'gif' === $format ? 'gif' : 'jpg';
+		$url    = $this->playback_base( $playback_id ) . '/thumbnails/thumbnail.' . $format;
 		$params = array_filter( $params, array( $this, 'is_present' ) );
 		if ( ! empty( $params ) ) {
 			$url .= '?' . http_build_query( $params );

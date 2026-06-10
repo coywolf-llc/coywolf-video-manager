@@ -317,6 +317,8 @@ class Coywolf_CVM_Block {
 
 		$playback_id = $uid;
 		$poster      = $this->poster_url( $attributes, $playback_id, $uid );
+		// Static counterpart for schema thumbnails (identical unless animated).
+		$schema_poster = $this->poster_url( $attributes, $playback_id, $uid, false );
 
 		// Cloudflare iframe params.
 		$params = array( 'preload' => $cfg['preload'] );
@@ -392,7 +394,7 @@ class Coywolf_CVM_Block {
 			<?php echo $this->caption_markup( $name, self::video_description( $uid ), $cfg ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php echo $this->meta_markup( $uid, $cfg, $counts, $upload_ts ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</figure>
-		<?php echo $this->schema_markup( $uid, $name, $poster, $duration, $cfg, $counts, $iframe_url, $upload_iso ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		<?php echo $this->schema_markup( $uid, $name, $schema_poster, $duration, $cfg, $counts, $iframe_url, $upload_iso ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -694,12 +696,30 @@ class Coywolf_CVM_Block {
 	 * @param string $uid         Video UID.
 	 * @return string
 	 */
-	private function poster_url( $attributes, $playback_id, $uid ) {
+	private function poster_url( $attributes, $playback_id, $uid, $allow_animated = true ) {
 		$mode = isset( $attributes['posterMode'] ) ? $attributes['posterMode'] : 'timestamp';
 		if ( 'media' === $mode && ! empty( $attributes['posterUrl'] ) ) {
 			return esc_url_raw( $attributes['posterUrl'] );
 		}
 		$btime = isset( $attributes['posterTime'] ) ? max( 0, (float) $attributes['posterTime'] ) : 0;
+
+		// Animated GIF poster: per-block opt-in (timestamp mode only). Schema
+		// thumbnails stay static; the schema caller passes $allow_animated false.
+		if ( $allow_animated && 'media' !== $mode && ! empty( $attributes['posterAnimated'] ) ) {
+			$anim_duration = isset( $attributes['posterAnimDuration'] ) ? max( 1, min( 10, (int) $attributes['posterAnimDuration'] ) ) : 5;
+			$anim_fps      = isset( $attributes['posterAnimFps'] ) ? max( 2, min( 15, (int) $attributes['posterAnimFps'] ) ) : 8;
+			return $this->cloudflare->thumbnail_url(
+				$playback_id,
+				array(
+					'time'     => $btime . 's',
+					'duration' => $anim_duration . 's',
+					'fps'      => $anim_fps,
+					'width'    => 800,
+				),
+				'gif'
+			);
+		}
+
 		if ( $btime > 0 ) {
 			return $this->cloudflare->thumbnail_url( $playback_id, array( 'time' => $btime . 's', 'width' => self::POSTER_WIDTH ) );
 		}

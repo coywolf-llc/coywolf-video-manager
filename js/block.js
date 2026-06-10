@@ -504,15 +504,54 @@
 					}
 				} ),
 				'timestamp' === a.posterMode
-					? el( TimeField, {
-						label: __( 'Timestamp', 'coywolf-video-manager' ),
-						value: a.posterTime,
-						max: durationMax > 1 ? durationMax : 0,
-						help: __( 'Minutes:seconds (4:26), hours:minutes:seconds (1:02:15), or seconds (266).', 'coywolf-video-manager' ),
-						onChange: function ( v ) {
-							setAttributes( { posterTime: v } );
-						}
-					} )
+					? el(
+						Fragment,
+						{},
+						el( TimeField, {
+							label: __( 'Timestamp', 'coywolf-video-manager' ),
+							value: a.posterTime,
+							max: durationMax > 1 ? durationMax : 0,
+							help: __( 'Minutes:seconds (4:26), hours:minutes:seconds (1:02:15), or seconds (266).', 'coywolf-video-manager' ),
+							onChange: function ( v ) {
+								setAttributes( { posterTime: v } );
+							}
+						} ),
+						el( ToggleControl, {
+							label: __( 'Animated poster (GIF)', 'coywolf-video-manager' ),
+							checked: !! a.posterAnimated,
+							help: __( 'A short looping preview that starts at the timestamp.', 'coywolf-video-manager' ),
+							__nextHasNoMarginBottom: true,
+							onChange: function ( v ) {
+								setAttributes( { posterAnimated: v } );
+							}
+						} ),
+						a.posterAnimated
+							? el(
+								Fragment,
+								{},
+								el( RangeControl, {
+									label: __( 'Loop length (seconds)', 'coywolf-video-manager' ),
+									value: a.posterAnimDuration,
+									min: 1,
+									max: 10,
+									__nextHasNoMarginBottom: true,
+									onChange: function ( v ) {
+										setAttributes( { posterAnimDuration: v } );
+									}
+								} ),
+								el( RangeControl, {
+									label: __( 'Frames per second', 'coywolf-video-manager' ),
+									value: a.posterAnimFps,
+									min: 2,
+									max: 15,
+									__nextHasNoMarginBottom: true,
+									onChange: function ( v ) {
+										setAttributes( { posterAnimFps: v } );
+									}
+								} )
+							)
+							: null
+					)
 					: el(
 						'div',
 						{ className: 'coywolf-cvm-poster-media' },
