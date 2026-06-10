@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.44
+Stable tag: 1.0.45
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 4. Settings.
 
 == Changelog ==
+
+= 1.0.45 =
+* All Videos: replace Status column with Created, default-sorted newest first (#46).
 
 = 1.0.44 =
 * All Videos: flag dashboard-deleted videos still embedded, with confirmed cleanup (#45).
