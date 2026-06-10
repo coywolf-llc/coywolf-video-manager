@@ -315,7 +315,13 @@ class Coywolf_CVM_Admin {
 		echo '<div class="wrap">';
 		echo '<h1 class="wp-heading-inline">' . esc_html__( 'All Videos', 'coywolf-video-manager' ) . '</h1>';
 		echo ' <a href="' . esc_url( admin_url( 'admin.php?page=coywolf-video-manager-upload' ) ) . '" class="page-title-action">' . esc_html__( 'Upload Video', 'coywolf-video-manager' ) . '</a>';
-		echo ' <a href="' . esc_url( add_query_arg( array( 'page' => self::PAGE, 'cvm_refresh' => 1 ), admin_url( 'admin.php' ) ) ) . '" class="page-title-action">' . esc_html__( 'Refresh', 'coywolf-video-manager' ) . '</a>';
+		// With the webhook enabled, Cloudflare pings this site as videos finish
+		// processing, so the manual cache-busting Refresh is redundant (other
+		// dashboard-side edits self-heal within the five-minute list cache).
+		$coywolf_cvm_webhook = get_option( 'coywolf_cvm_webhook', array() );
+		if ( ! is_array( $coywolf_cvm_webhook ) || empty( $coywolf_cvm_webhook['secret'] ) ) {
+			echo ' <a href="' . esc_url( add_query_arg( array( 'page' => self::PAGE, 'cvm_refresh' => 1 ), admin_url( 'admin.php' ) ) ) . '" class="page-title-action">' . esc_html__( 'Refresh', 'coywolf-video-manager' ) . '</a>';
+		}
 		echo '<hr class="wp-header-end" />';
 
 		if ( ! $this->cloudflare->is_configured() ) {
