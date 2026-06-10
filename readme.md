@@ -23,9 +23,7 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 - **Edit Video screen** — rename, add a description (used in schema + the sitemap), set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image at the recommended size), copy the video ID, and add or AI-generate captions.
 - **Upload to Cloudflare** — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.
 - **Video XML sitemap** — optionally serve `/coywolf-video-sitemap.xml` listing every page and post that embeds a video, with full Google video tags (thumbnail, title, description, content & player URLs, duration, publication date, view count). Named to avoid clashing with Yoast SEO.
-
-Deleting a video removes its block from any post or page that used it.
-
+- **Safe deletes** — deleting a video removes its block from any post or page that used it. And if a video was deleted in the Cloudflare dashboard instead, the All Videos screen flags any posts still embedding it and offers a one-click, re-verified cleanup.
 <!-- wporg-strip:start -->
 - **GitHub self-updater** — updates delivered straight from the project's GitHub releases.
 <!-- wporg-strip:end -->

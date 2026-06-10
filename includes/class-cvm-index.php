@@ -189,6 +189,27 @@ class Coywolf_CVM_Index {
 	 * --------------------------------------------------------------------- */
 
 	/**
+	 * Every distinct video UID currently referenced by indexed posts/pages.
+	 *
+	 * @return string[]
+	 */
+	public function embedded_uids() {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT uid FROM %i', self::usage_table() ) ) );
+	}
+
+	/**
+	 * Post IDs embedding a video (public wrapper for the orphan-cleanup UI).
+	 *
+	 * @param string $uid Video UID.
+	 * @return int[]
+	 */
+	public function posts_for( $uid ) {
+		return $this->post_ids_for( $uid );
+	}
+
+	/**
 	 * Usage counts per video, keyed by UID: { posts, pages }.
 	 *
 	 * @param array $uids Video UIDs.

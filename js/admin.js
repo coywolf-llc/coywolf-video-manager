@@ -109,6 +109,15 @@
 				}
 			} );
 		} );
+		// Confirm the orphan cleanup (it edits posts).
+		var orphansForm = document.querySelector( '.coywolf-cvm-orphans-form' );
+		if ( orphansForm ) {
+			orphansForm.addEventListener( 'submit', function ( e ) {
+				if ( ! window.confirm( i18n.confirmOrphans || 'Remove the missing videos from those posts? This cannot be undone.' ) ) {
+					e.preventDefault();
+				}
+			} );
+		}
 	}
 
 	/* ----- Edit Video ----- */
