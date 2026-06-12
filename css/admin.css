@@ -61,6 +61,37 @@
 	width: 9%;
 }
 
+/* All Videos: thumbnail column. */
+.wp-list-table .column-thumbnail {
+	width: 130px;
+}
+
+/* Small screens: core's responsive rules only hide columns after the primary
+   (.column-primary ~), so hide the before-primary Thumbnail header and cells
+   the same way; core's .is-expanded display:block !important reveals the cell
+   on toggle. The 35% padding matches the other expanded fields, keeping the
+   data-colname label in the left gutter instead of on top of the image. */
+@media screen and (max-width: 782px) {
+	.wp-list-table th.column-thumbnail {
+		display: none;
+	}
+
+	.wp-list-table tr:not(.inline-edit-row):not(.no-items) td.column-thumbnail {
+		display: none;
+		padding: 3px 8px 3px 35%;
+	}
+}
+
+.coywolf-cvm-list-thumb {
+	display: block;
+	width: 120px;
+	max-width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	background: #1d2327;
+	border-radius: 4px;
+}
+
 .coywolf-cvm-edit-field {
 	margin-bottom: 1.2em;
 	max-width: 640px;
