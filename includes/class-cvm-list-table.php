@@ -94,14 +94,26 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'cb'      => '<input type="checkbox" />',
-			'name'    => __( 'Name', 'coywolf-video-manager' ),
-			'created' => __( 'Created', 'coywolf-video-manager' ),
-			'plays'   => __( 'Plays', 'coywolf-video-manager' ),
-			'likes'   => __( 'Likes', 'coywolf-video-manager' ),
-			'posts'   => __( 'Posts', 'coywolf-video-manager' ),
-			'pages'   => __( 'Pages', 'coywolf-video-manager' ),
+			'cb'        => '<input type="checkbox" />',
+			'thumbnail' => __( 'Thumbnail', 'coywolf-video-manager' ),
+			'name'      => __( 'Name', 'coywolf-video-manager' ),
+			'created'   => __( 'Created', 'coywolf-video-manager' ),
+			'plays'     => __( 'Plays', 'coywolf-video-manager' ),
+			'likes'     => __( 'Likes', 'coywolf-video-manager' ),
+			'posts'     => __( 'Posts', 'coywolf-video-manager' ),
+			'pages'     => __( 'Pages', 'coywolf-video-manager' ),
 		);
+	}
+
+	/**
+	 * Keep Name the primary column (row actions, responsive toggle) now that
+	 * Thumbnail comes first. Core's default falls back to the first non-cb
+	 * column on screens without registered column headers, like this one.
+	 *
+	 * @return string
+	 */
+	protected function get_primary_column_name() {
+		return 'name';
 	}
 
 	/**
@@ -174,14 +186,7 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	public function column_name( $item ) {
-		$edit_url = add_query_arg(
-			array(
-				'page'   => Coywolf_CVM_Admin::PAGE,
-				'action' => 'edit',
-				'uid'    => $item['uid'],
-			),
-			admin_url( 'admin.php' )
-		);
+		$edit_url = $this->edit_url( $item['uid'] );
 
 		$name    = '' !== $item['name'] ? $item['name'] : __( '(untitled)', 'coywolf-video-manager' );
 		$actions = array(
@@ -190,6 +195,38 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		);
 
 		return '<strong><a class="row-title" href="' . esc_url( $edit_url ) . '">' . esc_html( $name ) . '</a></strong>' . $this->row_actions( $actions );
+	}
+
+	/**
+	 * Thumbnail column: the video's poster frame, linked to the Edit Video page.
+	 *
+	 * @param array $item Row.
+	 * @return string
+	 */
+	public function column_thumbnail( $item ) {
+		if ( '' === $item['thumbnail'] ) {
+			return '&#8212;';
+		}
+		// Same Cloudflare poster the picker shows, sized down for the table.
+		$src = add_query_arg( 'width', 240, $item['thumbnail'] );
+		return '<a href="' . esc_url( $this->edit_url( $item['uid'] ) ) . '"><img class="coywolf-cvm-list-thumb" src="' . esc_url( $src ) . '" alt="" loading="lazy" /></a>';
+	}
+
+	/**
+	 * Edit Video page URL.
+	 *
+	 * @param string $uid Video UID.
+	 * @return string
+	 */
+	private function edit_url( $uid ) {
+		return add_query_arg(
+			array(
+				'page'   => Coywolf_CVM_Admin::PAGE,
+				'action' => 'edit',
+				'uid'    => $uid,
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**
@@ -366,6 +403,7 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			$rows[] = array(
 				'uid'        => $uid,
 				'name'       => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
+				'thumbnail'  => isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '',
 				'created_ts' => isset( $video['created'] ) ? (int) strtotime( (string) $video['created'] ) : 0,
 				'plays'      => 0,
 				'likes'      => 0,

@@ -175,6 +175,21 @@
 		var loadingState = useState( false );
 		var loading = loadingState[ 0 ];
 		var setLoading = loadingState[ 1 ];
+		var searchRef = useRef( null );
+
+		// Focus the filter input on open so typing filters immediately. The
+		// Modal's own focus-on-mount also runs on a zero timeout; this one is
+		// queued after it, so the input wins.
+		useEffect( function () {
+			var timer = setTimeout( function () {
+				if ( searchRef.current ) {
+					searchRef.current.focus();
+				}
+			}, 0 );
+			return function () {
+				clearTimeout( timer );
+			};
+		}, [] );
 
 		function search( term ) {
 			setLoading( true );
@@ -238,6 +253,7 @@
 				'div',
 				{ className: 'coywolf-cvm-picker-search' },
 				el( TextControl, {
+					ref: searchRef,
 					label: __( 'Search videos', 'coywolf-video-manager' ),
 					hideLabelFromVision: true,
 					value: query,
