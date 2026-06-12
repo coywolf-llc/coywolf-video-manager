@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.47
+- **Version:** 1.0.48
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -107,6 +107,9 @@ Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name/description figcap
 4. Settings.
 
 ## Changelog
+
+### 1.0.48
+- Use the stored poster with an explicit time for admin, picker, and sitemap thumbnails (#49).
 
 ### 1.0.47
 - Picker: focus the search input on open; All Videos: linked thumbnail column (#48).
