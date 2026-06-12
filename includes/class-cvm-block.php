@@ -678,6 +678,30 @@ class Coywolf_CVM_Block {
 	}
 
 	/**
+	 * Thumbnail URL for a video using its stored poster: the custom image, or
+	 * the poster timestamp (else the first frame) as an explicit `time` param.
+	 * Cloudflare's bare default-poster URL can return an error for minutes
+	 * while Cloudflare regenerates it after a timestamp change, so surfaces
+	 * that show the library (All Videos table, Edit Video preview, the XML
+	 * sitemap) must never depend on it.
+	 *
+	 * @param string                 $uid        Video UID.
+	 * @param Coywolf_CVM_Cloudflare $cloudflare Cloudflare client.
+	 * @param array                  $params     Extra thumbnail params (width, …).
+	 * @return string
+	 */
+	public static function poster_thumbnail_url( $uid, $cloudflare, $params = array() ) {
+		$poster = self::video_poster( $uid );
+		$mode   = ( $poster && isset( $poster['mode'] ) ) ? $poster['mode'] : '';
+		if ( 'image' === $mode && ! empty( $poster['image_url'] ) ) {
+			return esc_url_raw( $poster['image_url'] );
+		}
+		$time           = ( 'timestamp' === $mode && isset( $poster['time'] ) ) ? max( 0, (float) $poster['time'] ) : 0;
+		$params['time'] = $time . 's';
+		return $cloudflare->thumbnail_url( $uid, $params );
+	}
+
+	/**
 	 * The per-video description set on the Edit Video page (used in schema and
 	 * the XML sitemap), or '' if none.
 	 *

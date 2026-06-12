@@ -497,7 +497,6 @@ class Coywolf_CVM_Admin {
 		$origins  = isset( $video['allowedOrigins'] ) && is_array( $video['allowedOrigins'] ) ? implode( "\n", $video['allowedOrigins'] ) : '';
 		$duration = isset( $video['duration'] ) ? (float) $video['duration'] : 0;
 		$pct      = isset( $video['thumbnailTimestampPct'] ) ? (float) $video['thumbnailTimestampPct'] : 0;
-		$thumb    = isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '';
 
 		// Per-video poster (timestamp or custom image), saved on this page.
 		$poster      = Coywolf_CVM_Block::video_poster( $uid );
@@ -507,9 +506,19 @@ class Coywolf_CVM_Admin {
 			: ( $duration > 0 ? round( $pct * $duration ) : 0 );
 		$poster_img_id  = ( $poster && isset( $poster['image_id'] ) ) ? (int) $poster['image_id'] : 0;
 		$poster_img_url = ( $poster && isset( $poster['image_url'] ) ) ? (string) $poster['image_url'] : '';
-		$preview_src    = ( 'image' === $poster_mode && '' !== $poster_img_url ) ? $poster_img_url : $thumb;
-		$back_url       = admin_url( 'admin.php?page=' . self::PAGE );
-		$video_desc     = Coywolf_CVM_Block::video_description( $uid );
+		// Preview with an explicit time — Cloudflare's bare default poster
+		// ($video['thumbnail']) can 400 while regenerating after a save.
+		$preview_src = ( 'image' === $poster_mode && '' !== $poster_img_url )
+			? $poster_img_url
+			: $this->cloudflare->thumbnail_url(
+				$uid,
+				array(
+					'time'  => $poster_time . 's',
+					'width' => 1200,
+				)
+			);
+		$back_url    = admin_url( 'admin.php?page=' . self::PAGE );
+		$video_desc  = Coywolf_CVM_Block::video_description( $uid );
 
 		// Recommended custom-poster size: 1200px wide, height matching the video.
 		$vid_w = isset( $video['input']['width'] ) ? (int) $video['input']['width'] : 0;
