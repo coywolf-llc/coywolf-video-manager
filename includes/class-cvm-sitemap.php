@@ -202,7 +202,7 @@ class Coywolf_CVM_Sitemap {
 
 				// Element order follows the sitemap-video 1.1 schema sequence.
 				$xml .= "\t\t<video:video>\n";
-				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $this->cloudflare->thumbnail_url( $uid ) ) . "</video:thumbnail_loc>\n";
+				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( Coywolf_CVM_Block::poster_thumbnail_url( $uid, $this->cloudflare ) ) . "</video:thumbnail_loc>\n";
 				$xml .= "\t\t\t<video:title>" . $this->xml_text( $title ) . "</video:title>\n";
 				$xml .= "\t\t\t<video:description>" . $this->xml_text( wp_strip_all_tags( $desc ) ) . "</video:description>\n";
 				$mp4   = Coywolf_CVM_Block::video_download_url( $uid );

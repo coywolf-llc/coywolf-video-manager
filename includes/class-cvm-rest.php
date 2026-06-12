@@ -864,7 +864,11 @@ class Coywolf_CVM_REST {
 			'duration'              => isset( $video['duration'] ) ? (float) $video['duration'] : 0,
 			'ready'                 => ! empty( $video['readyToStream'] ),
 			'state'                 => isset( $video['status']['state'] ) ? (string) $video['status']['state'] : '',
-			'thumbnail'             => isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '',
+			// Stored poster with an explicit time, not Cloudflare's bare
+			// default-poster URL — it can 400 while regenerating after a save.
+			'thumbnail'             => ( '' !== $uid && ! empty( $video['readyToStream'] ) )
+				? Coywolf_CVM_Block::poster_thumbnail_url( $uid, $this->cloudflare )
+				: ( isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '' ),
 			'creator'               => isset( $video['creator'] ) ? (string) $video['creator'] : '',
 			'allowedOrigins'        => isset( $video['allowedOrigins'] ) && is_array( $video['allowedOrigins'] ) ? $video['allowedOrigins'] : array(),
 			'thumbnailTimestampPct' => isset( $video['thumbnailTimestampPct'] ) ? (float) $video['thumbnailTimestampPct'] : 0,
