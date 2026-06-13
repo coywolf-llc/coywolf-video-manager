@@ -684,13 +684,15 @@ class Coywolf_CVM_Settings {
 	 * @param string $label Label.
 	 */
 	private function color_input( $key, $label ) {
-		$value = (string) $this->get( $key );
+		$value    = (string) $this->get( $key );
+		$label_id = 'coywolf-cvm-colorlabel-' . $key;
 		printf(
-			'<p class="coywolf-cvm-color-field" data-key="%3$s"><span class="coywolf-cvm-color-label">%1$s</span><br /><input type="hidden" class="coywolf-cvm-color-value" name="%2$s[%3$s]" value="%4$s" /><span class="coywolf-cvm-color-mount"></span></p>',
+			'<p class="coywolf-cvm-color-field" data-key="%3$s" role="group" aria-labelledby="%5$s"><span class="coywolf-cvm-color-label" id="%5$s">%1$s</span><br /><input type="hidden" class="coywolf-cvm-color-value" name="%2$s[%3$s]" value="%4$s" /><span class="coywolf-cvm-color-mount"></span></p>',
 			esc_html( $label ),
 			esc_attr( self::OPTION ),
 			esc_attr( $key ),
-			esc_attr( $value )
+			esc_attr( $value ),
+			esc_attr( $label_id )
 		);
 	}
 

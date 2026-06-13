@@ -175,6 +175,14 @@ class Coywolf_CVM_Sitemap {
 		if ( ! is_array( $descriptions ) ) {
 			$descriptions = array();
 		}
+		$posters = get_option( 'coywolf_cvm_posters', array() );
+		if ( ! is_array( $posters ) ) {
+			$posters = array();
+		}
+		$downloads = get_option( 'coywolf_cvm_downloads', array() );
+		if ( ! is_array( $downloads ) ) {
+			$downloads = array();
+		}
 
 		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">' . "\n";
@@ -202,10 +210,18 @@ class Coywolf_CVM_Sitemap {
 
 				// Element order follows the sitemap-video 1.1 schema sequence.
 				$xml .= "\t\t<video:video>\n";
-				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( Coywolf_CVM_Block::poster_thumbnail_url( $uid, $this->cloudflare ) ) . "</video:thumbnail_loc>\n";
+				$poster   = ( isset( $posters[ $uid ] ) && is_array( $posters[ $uid ] ) ) ? $posters[ $uid ] : null;
+				$p_mode   = ( $poster && isset( $poster['mode'] ) ) ? $poster['mode'] : '';
+				if ( 'image' === $p_mode && ! empty( $poster['image_url'] ) ) {
+					$thumb = esc_url_raw( $poster['image_url'] );
+				} else {
+					$p_time = ( 'timestamp' === $p_mode && isset( $poster['time'] ) ) ? max( 0, (float) $poster['time'] ) : 0;
+					$thumb  = $this->cloudflare->thumbnail_url( $uid, array( 'time' => $p_time . 's' ) );
+				}
+				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $thumb ) . "</video:thumbnail_loc>\n";
 				$xml .= "\t\t\t<video:title>" . $this->xml_text( $title ) . "</video:title>\n";
 				$xml .= "\t\t\t<video:description>" . $this->xml_text( wp_strip_all_tags( $desc ) ) . "</video:description>\n";
-				$mp4   = Coywolf_CVM_Block::video_download_url( $uid );
+				$mp4   = ( ! empty( $downloads[ $uid ] ) ) ? (string) $downloads[ $uid ] : '';
 				$xml  .= "\t\t\t<video:content_loc>" . esc_url( '' !== $mp4 ? $mp4 : $this->cloudflare->watch_url( $uid ) ) . "</video:content_loc>\n";
 				$xml .= "\t\t\t<video:player_loc>" . esc_url( $this->cloudflare->iframe_url( $uid ) ) . "</video:player_loc>\n";
 				if ( $duration > 0 && $duration <= 28800 ) {

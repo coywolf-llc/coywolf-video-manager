@@ -474,7 +474,10 @@
 					del.className = 'button-link';
 					del.textContent = i18n.remove || 'Remove';
 					del.addEventListener( 'click', function () {
-						rest( '/videos/' + encodeURIComponent( uid ) + '/captions/' + encodeURIComponent( c.language ), 'DELETE' ).then( load ).catch( function ( e ) {
+						rest( '/videos/' + encodeURIComponent( uid ) + '/captions/' + encodeURIComponent( c.language ), 'DELETE' ).then( function () {
+							status.textContent = i18n.captionRemoved || 'Caption removed.';
+							load();
+						} ).catch( function ( e ) {
 							status.textContent = '✗ ' + errMsg( e );
 						} );
 					} );
