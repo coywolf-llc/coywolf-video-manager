@@ -167,6 +167,7 @@ class Coywolf_CVM_Admin {
 						'saved'          => __( 'Saved.', 'coywolf-video-manager' ),
 						'noCaptions'     => __( 'No captions yet.', 'coywolf-video-manager' ),
 						'remove'         => __( 'Remove', 'coywolf-video-manager' ),
+						'captionRemoved' => __( 'Caption removed.', 'coywolf-video-manager' ),
 						'generating'     => __( 'Generating captions — this can take a few minutes.', 'coywolf-video-manager' ),
 						'pickFile'       => __( 'Choose a .vtt file first.', 'coywolf-video-manager' ),
 						'pickVideo'      => __( 'Choose a video file first.', 'coywolf-video-manager' ),
@@ -598,7 +599,7 @@ class Coywolf_CVM_Admin {
 			</tbody></table>
 
 			<h2><?php esc_html_e( 'Captions', 'coywolf-video-manager' ); ?></h2>
-			<ul class="coywolf-cvm-captions-list"></ul>
+			<ul class="coywolf-cvm-captions-list" aria-live="polite" aria-relevant="additions text" aria-label="<?php esc_attr_e( 'Caption tracks', 'coywolf-video-manager' ); ?>"></ul>
 			<table class="form-table" role="presentation"><tbody>
 				<tr>
 					<th scope="row"><label for="cvm-cap-lang"><?php esc_html_e( 'Add captions', 'coywolf-video-manager' ); ?></label></th>

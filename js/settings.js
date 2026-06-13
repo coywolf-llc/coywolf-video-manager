@@ -182,6 +182,29 @@
 				defaultFormat: 'hex',
 				showClearButton: true
 			} );
+			var labelEl = field.querySelector( '.coywolf-cvm-color-label' );
+			if ( labelEl ) {
+				if ( ! labelEl.id ) {
+					labelEl.id = 'coywolf-cvm-colorlabel-' + field.getAttribute( 'data-key' );
+				}
+				// picker.element returns the toggle ($toggle === the mount span the lib took over).
+				var toggle = picker.element || mount;
+				if ( toggle ) {
+					toggle.setAttribute( 'aria-labelledby', labelEl.id );
+					toggle.setAttribute( 'role', 'button' ); // span+type=button has no implicit role.
+					if ( ! toggle.hasAttribute( 'tabindex' ) ) {
+						toggle.setAttribute( 'tabindex', '0' ); // make it keyboard-focusable.
+					}
+					// A span with role="button" does not activate on Enter/Space —
+					// bridge those keys to the library's click-bound toggle.
+					toggle.addEventListener( 'keydown', function ( e ) {
+						if ( 'Enter' === e.key || ' ' === e.key || 'Spacebar' === e.key ) {
+							e.preventDefault();
+							toggle.click();
+						}
+					} );
+				}
+			}
 			picker.on( 'pick', function ( color ) {
 				var hex = '';
 				if ( color ) {

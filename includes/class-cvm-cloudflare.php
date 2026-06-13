@@ -724,7 +724,12 @@ class Coywolf_CVM_Cloudflare {
 			return $this->customer_code_cache;
 		}
 		$code = (string) get_option( 'coywolf_cvm_customer_code', '' );
-		if ( '' === $code && $this->is_configured() ) {
+		// Only learn inline in wp-admin / REST / CLI; never block a public page view
+		// on a remote Cloudflare call. On the front end, the URL builders already
+		// fall back to videodelivery.net until a background path (admin All-Videos
+		// table, REST list, sitemap) learns the code.
+		if ( '' === $code && $this->is_configured()
+			&& ( is_admin() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
 			$list = $this->list_videos( array( 'limit' => 50 ) );
 			if ( ! is_wp_error( $list ) ) {
 				$this->learn_customer_code( $list );

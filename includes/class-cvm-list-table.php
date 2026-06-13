@@ -209,8 +209,9 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		}
 		// The stored poster (custom image or explicit timestamp), never
 		// Cloudflare's bare default poster — it can 400 while regenerating.
-		$src = Coywolf_CVM_Block::poster_thumbnail_url( $item['uid'], $this->cloudflare, array( 'width' => 240 ) );
-		return '<a href="' . esc_url( $this->edit_url( $item['uid'] ) ) . '"><img class="coywolf-cvm-list-thumb" src="' . esc_url( $src ) . '" alt="" loading="lazy" /></a>';
+		$src   = Coywolf_CVM_Block::poster_thumbnail_url( $item['uid'], $this->cloudflare, array( 'width' => 240 ) );
+		$label = '' !== $item['name'] ? $item['name'] : $item['uid'];
+		return '<a href="' . esc_url( $this->edit_url( $item['uid'] ) ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: video name or UID. */ __( 'Edit %s', 'coywolf-video-manager' ), $label ) ) . '"><img class="coywolf-cvm-list-thumb" src="' . esc_url( $src ) . '" alt="" loading="lazy" /></a>';
 	}
 
 	/**
