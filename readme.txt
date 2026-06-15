@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.51
+Stable tag: 1.0.52
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,7 +32,7 @@ Features:
 
 == Cloudflare API access ==
 
-Settings are locked until you connect a Cloudflare account. You need your Account ID (in the Cloudflare dashboard sidebar) and an API token created at My Profile > API Tokens with the "Account > Stream > Edit" permission. Paste both into Videos > Settings and click Test connection. The token is stored server-side and never exposed to the browser. You can instead define COYWOLF_CVM_API_TOKEN and COYWOLF_CVM_ACCOUNT_ID in wp-config.php.
+Settings are locked until you connect a Cloudflare account. You need your Account ID (in the Cloudflare dashboard sidebar) and an API token created at My Profile > API Tokens with the "Account > Stream > Edit" permission. Paste both into Videos > Settings and click Test connection. The token is stored server-side and never exposed to the browser. For better security you can instead define COYWOLF_CVM_API_TOKEN and COYWOLF_CVM_ACCOUNT_ID in wp-config.php (or set matching environment variables) to keep the credentials out of the database. A value saved in Settings takes precedence over the constant; leave the field empty (or use Remove on the token) to fall back to the wp-config.php value.
 
 == Installation ==
 
@@ -71,6 +71,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 4. Settings.
 
 == Changelog ==
+
+= 1.0.52 =
+* Cloudflare credentials: support wp-config.php constants and environment variables with a saved value taking precedence, editable fields, a Remove option, and a status row showing the active source (#53).
 
 = 1.0.51 =
 * Updater: run GitHub release checks in the background so the Updates screen never hangs (#52).
