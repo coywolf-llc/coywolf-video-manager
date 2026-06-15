@@ -29,6 +29,16 @@ class Coywolf_CVM_Cloudflare {
 	const LIST_TTL = 300;
 
 	/**
+	 * Name of the wp-config.php constant / environment variable for the API token.
+	 */
+	const TOKEN_CONST = 'COYWOLF_CVM_API_TOKEN';
+
+	/**
+	 * Name of the wp-config.php constant / environment variable for the account ID.
+	 */
+	const ACCOUNT_CONST = 'COYWOLF_CVM_ACCOUNT_ID';
+
+	/**
 	 * Per-request cache of the resolved playback customer code.
 	 *
 	 * @var string|null
@@ -40,45 +50,93 @@ class Coywolf_CVM_Cloudflare {
 	 * --------------------------------------------------------------------- */
 
 	/**
-	 * Get the API token (wp-config constant takes precedence over the option).
+	 * Get the API token. Resolution order, mirroring Coywolf SEO's AI keys:
+	 * the saved option wins, then the {@see TOKEN_CONST} wp-config constant,
+	 * then the same-named environment variable.
 	 *
 	 * @return string
 	 */
 	public function get_token() {
-		if ( defined( 'COYWOLF_CVM_API_TOKEN' ) && COYWOLF_CVM_API_TOKEN ) {
-			return (string) COYWOLF_CVM_API_TOKEN;
-		}
-		return (string) get_option( 'coywolf_cvm_api_token', '' );
+		return $this->resolve( 'coywolf_cvm_api_token', self::TOKEN_CONST );
 	}
 
 	/**
-	 * Get the Cloudflare account ID (wp-config constant takes precedence).
+	 * Get the Cloudflare account ID. Same resolution order as {@see get_token()}.
 	 *
 	 * @return string
 	 */
 	public function get_account_id() {
-		if ( defined( 'COYWOLF_CVM_ACCOUNT_ID' ) && COYWOLF_CVM_ACCOUNT_ID ) {
-			return (string) COYWOLF_CVM_ACCOUNT_ID;
+		return $this->resolve( 'coywolf_cvm_account_id', self::ACCOUNT_CONST );
+	}
+
+	/**
+	 * Resolve a credential: saved option, else the wp-config constant, else the
+	 * same-named environment variable.
+	 *
+	 * @param string $option     Option name holding the saved value.
+	 * @param string $const_name Constant / environment-variable name.
+	 * @return string
+	 */
+	private function resolve( $option, $const_name ) {
+		$saved = (string) get_option( $option, '' );
+		if ( '' !== $saved ) {
+			return $saved;
 		}
-		return (string) get_option( 'coywolf_cvm_account_id', '' );
+		if ( defined( $const_name ) && '' !== (string) constant( $const_name ) ) {
+			return (string) constant( $const_name );
+		}
+		$env = getenv( $const_name );
+		return ( is_string( $env ) && '' !== $env ) ? $env : '';
 	}
 
 	/**
-	 * Whether the token is fixed by a wp-config constant.
+	 * Where the API token comes from, for the Settings status row.
 	 *
-	 * @return bool
+	 * @return array{source:string,saved:bool,constant:bool,env:bool}
 	 */
-	public function token_is_locked() {
-		return defined( 'COYWOLF_CVM_API_TOKEN' ) && (bool) COYWOLF_CVM_API_TOKEN;
+	public function token_status() {
+		return $this->credential_status( 'coywolf_cvm_api_token', self::TOKEN_CONST );
 	}
 
 	/**
-	 * Whether the account ID is fixed by a wp-config constant.
+	 * Where the account ID comes from, for the Settings status row.
 	 *
-	 * @return bool
+	 * @return array{source:string,saved:bool,constant:bool,env:bool}
 	 */
-	public function account_is_locked() {
-		return defined( 'COYWOLF_CVM_ACCOUNT_ID' ) && (bool) COYWOLF_CVM_ACCOUNT_ID;
+	public function account_status() {
+		return $this->credential_status( 'coywolf_cvm_account_id', self::ACCOUNT_CONST );
+	}
+
+	/**
+	 * Describe a credential's source (option > constant > env), matching the
+	 * shape Coywolf SEO uses for its AI key status row.
+	 *
+	 * @param string $option     Option name holding the saved value.
+	 * @param string $const_name Constant / environment-variable name.
+	 * @return array{source:string,saved:bool,constant:bool,env:bool}
+	 */
+	private function credential_status( $option, $const_name ) {
+		$saved    = '' !== (string) get_option( $option, '' );
+		$constant = defined( $const_name ) && '' !== (string) constant( $const_name );
+		$env_val  = getenv( $const_name );
+		$env      = is_string( $env_val ) && '' !== $env_val;
+
+		if ( $saved ) {
+			$source = 'saved';
+		} elseif ( $constant ) {
+			$source = 'constant';
+		} elseif ( $env ) {
+			$source = 'env';
+		} else {
+			$source = '';
+		}
+
+		return array(
+			'source'   => $source,
+			'saved'    => $saved,
+			'constant' => $constant,
+			'env'      => $env,
+		);
 	}
 
 	/**

@@ -60,6 +60,7 @@ class Coywolf_CVM_Settings {
 		add_action( 'admin_post_coywolf_cvm_test_connection', array( $this, 'handle_test_connection' ) );
 		add_action( 'admin_post_coywolf_cvm_enable_webhook', array( $this, 'handle_enable_webhook' ) );
 		add_action( 'admin_post_coywolf_cvm_disable_webhook', array( $this, 'handle_disable_webhook' ) );
+		add_action( 'admin_post_coywolf_cvm_remove_token', array( $this, 'handle_remove_token' ) );
 
 		// Drop the per-request settings cache when the option changes.
 		add_action( 'update_option_' . self::OPTION, array( $this, 'flush_cache' ) );
@@ -68,6 +69,7 @@ class Coywolf_CVM_Settings {
 		foreach ( array( 'coywolf_cvm_account_id', 'coywolf_cvm_api_token' ) as $option ) {
 			add_action( 'update_option_' . $option, array( $this, 'on_credentials_changed' ) );
 			add_action( 'add_option_' . $option, array( $this, 'on_credentials_changed' ) );
+			add_action( 'delete_option_' . $option, array( $this, 'on_credentials_changed' ) );
 		}
 	}
 
@@ -208,30 +210,30 @@ class Coywolf_CVM_Settings {
 	 * register once the account is connected — that is the gate.
 	 */
 	public function register() {
-		if ( ! $this->cloudflare->account_is_locked() ) {
-			register_setting(
-				self::GROUP,
-				'coywolf_cvm_account_id',
-				array(
-					'type'              => 'string',
-					'sanitize_callback' => array( $this, 'sanitize_account_id' ),
-					'default'           => '',
-					'show_in_rest'      => false,
-				)
-			);
-		}
-		if ( ! $this->cloudflare->token_is_locked() ) {
-			register_setting(
-				self::GROUP,
-				'coywolf_cvm_api_token',
-				array(
-					'type'              => 'string',
-					'sanitize_callback' => array( $this, 'sanitize_token' ),
-					'default'           => '',
-					'show_in_rest'      => false,
-				)
-			);
-		}
+		// Both credentials are always saveable. A saved value takes precedence
+		// over a wp-config constant or environment variable (see
+		// Coywolf_CVM_Cloudflare::get_token()), so the fields stay editable even
+		// when a constant is defined — the admin can override or fall back to it.
+		register_setting(
+			self::GROUP,
+			'coywolf_cvm_account_id',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_account_id' ),
+				'default'           => '',
+				'show_in_rest'      => false,
+			)
+		);
+		register_setting(
+			self::GROUP,
+			'coywolf_cvm_api_token',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_token' ),
+				'default'           => '',
+				'show_in_rest'      => false,
+			)
+		);
 
 		add_settings_section( 'coywolf_cvm_credentials', __( 'Cloudflare account', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'coywolf_cvm_setup', __( 'Getting started', 'coywolf-video-manager' ), array( $this, 'render_credentials_intro' ), self::PAGE, 'coywolf_cvm_credentials' );
@@ -405,6 +407,25 @@ class Coywolf_CVM_Settings {
 		echo '<li>' . wp_kses_post( __( '<strong>Account ID</strong> — find it in the right sidebar of the <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a>, or in the Stream section.', 'coywolf-video-manager' ) ) . '</li>';
 		echo '<li>' . wp_kses_post( __( '<strong>API token</strong> — at <em>My Profile → API Tokens → Create Token → Custom token</em>, grant <code>Account · Stream · Edit</code> (and optionally <code>Account · Account Analytics · Read</code> for watch-time).', 'coywolf-video-manager' ) ) . '</li>';
 		echo '</ol>';
+
+		$account_const = Coywolf_CVM_Cloudflare::ACCOUNT_CONST;
+		$token_const   = Coywolf_CVM_Cloudflare::TOKEN_CONST;
+		$snippet       = "define( '" . $account_const . "', 'YOUR_ACCOUNT_ID' );\n";
+		$snippet      .= "define( '" . $token_const . "', 'YOUR_API_TOKEN' );";
+
+		echo '<details class="coywolf-cvm-wpconfig" style="margin-top:1em;">';
+		echo '<summary>' . esc_html__( 'Add your credentials in wp-config.php instead (recommended)', 'coywolf-video-manager' ) . '</summary>';
+		echo '<p>' . esc_html__( 'Keeping credentials in wp-config.php instead of the database means a database leak (for example, a stolen backup) can’t expose your API token. Add these lines to wp-config.php, anywhere above the line that reads “That’s all, stop editing! Happy publishing.”:', 'coywolf-video-manager' ) . '</p>';
+		echo '<pre class="coywolf-cvm-code" style="white-space:pre-wrap;"><code>' . esc_html( $snippet ) . '</code></pre>';
+		echo '<p>';
+		printf(
+			/* translators: 1: account-ID constant name, 2: API-token constant name. */
+			esc_html__( 'The fields above take precedence, so to use the wp-config values leave a field empty (or click Remove on the token). Matching %1$s / %2$s environment variables work the same way if your host lets you set them.', 'coywolf-video-manager' ),
+			'<code>' . esc_html( $account_const ) . '</code>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			'<code>' . esc_html( $token_const ) . '</code>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		);
+		echo '</p>';
+		echo '</details>';
 	}
 
 	/**
@@ -437,31 +458,72 @@ class Coywolf_CVM_Settings {
 	 * Account ID field.
 	 */
 	public function render_account_field() {
-		if ( $this->cloudflare->account_is_locked() ) {
-			echo '<code>' . esc_html( $this->mask( $this->cloudflare->get_account_id() ) ) . '</code> ';
-			echo '<span class="description">' . esc_html__( 'Set via the COYWOLF_CVM_ACCOUNT_ID constant in wp-config.php.', 'coywolf-video-manager' ) . '</span>';
-			return;
-		}
 		printf(
 			'<input type="text" class="regular-text" name="coywolf_cvm_account_id" value="%s" autocomplete="off" spellcheck="false" />',
-			esc_attr( get_option( 'coywolf_cvm_account_id', '' ) )
+			esc_attr( (string) get_option( 'coywolf_cvm_account_id', '' ) )
 		);
+		$this->render_credential_status_note( $this->cloudflare->account_status(), Coywolf_CVM_Cloudflare::ACCOUNT_CONST );
 	}
 
 	/**
-	 * API token field (write-only; rendered blank when a token is stored).
+	 * API token field (write-only; rendered blank when a token is stored). The
+	 * field stays editable even when a wp-config constant / environment variable
+	 * is set — a saved value takes precedence, and Remove clears it to fall back.
 	 */
 	public function render_token_field() {
-		if ( $this->cloudflare->token_is_locked() ) {
-			echo '<code>' . esc_html__( '•••••••• (set in wp-config.php)', 'coywolf-video-manager' ) . '</code>';
-			return;
-		}
-		$has = '' !== (string) get_option( 'coywolf_cvm_api_token', '' );
+		$status = $this->cloudflare->token_status();
 		printf(
 			'<input type="password" class="regular-text" name="coywolf_cvm_api_token" value="" autocomplete="new-password" spellcheck="false" placeholder="%s" />',
-			esc_attr( $has ? __( '•••••••• saved — leave blank to keep', 'coywolf-video-manager' ) : __( 'Paste your API token', 'coywolf-video-manager' ) )
+			esc_attr( $status['saved'] ? __( '•••••••• saved — leave blank to keep', 'coywolf-video-manager' ) : __( 'Paste your API token', 'coywolf-video-manager' ) )
 		);
+		if ( $status['saved'] ) {
+			echo ' <a class="button-link button-link-delete" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=coywolf_cvm_remove_token' ), 'coywolf_cvm_remove_token' ) ) . '">' . esc_html__( 'Remove', 'coywolf-video-manager' ) . '</a>';
+		}
 		echo '<p class="description">' . esc_html__( 'Stored server-side and never sent to the browser.', 'coywolf-video-manager' ) . '</p>';
+		$this->render_credential_status_note( $status, Coywolf_CVM_Cloudflare::TOKEN_CONST );
+	}
+
+	/**
+	 * Echo a note under a credential field explaining which source is active
+	 * when it is not the saved value, or that a saved value is overriding a
+	 * wp-config constant / environment variable. Mirrors Coywolf SEO's AI key
+	 * status copy.
+	 *
+	 * @param array  $status     Status array from Coywolf_CVM_Cloudflare.
+	 * @param string $const_name Constant / environment-variable name.
+	 */
+	private function render_credential_status_note( array $status, $const_name ) {
+		if ( 'saved' === $status['source'] ) {
+			if ( $status['constant'] || $status['env'] ) {
+				echo '<p class="description">';
+				printf(
+					/* translators: %s: wp-config constant name. */
+					esc_html__( 'A wp-config %s is also defined, but the saved value above takes precedence. Clear this field to use it.', 'coywolf-video-manager' ),
+					'<code>' . esc_html( $const_name ) . '</code>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				);
+				echo '</p>';
+			}
+			return;
+		}
+		if ( 'constant' === $status['source'] ) {
+			echo '<p class="description">';
+			printf(
+				/* translators: %s: wp-config constant name. */
+				esc_html__( 'In use: the %s constant from wp-config.php. Enter a value above to override it.', 'coywolf-video-manager' ),
+				'<code>' . esc_html( $const_name ) . '</code>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			);
+			echo '</p>';
+			return;
+		}
+		if ( 'env' === $status['source'] ) {
+			echo '<p class="description">';
+			printf(
+				/* translators: %s: environment-variable name. */
+				esc_html__( 'In use: the %s environment variable. Enter a value above to override it.', 'coywolf-video-manager' ),
+				'<code>' . esc_html( $const_name ) . '</code>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			);
+			echo '</p>';
+		}
 	}
 
 	/**
@@ -762,20 +824,6 @@ class Coywolf_CVM_Settings {
 		);
 	}
 
-	/**
-	 * Mask a secret for display (first 3 + last 3 characters).
-	 *
-	 * @param string $value Secret.
-	 * @return string
-	 */
-	private function mask( $value ) {
-		$len = strlen( $value );
-		if ( $len <= 8 ) {
-			return str_repeat( '•', max( 0, $len ) );
-		}
-		return substr( $value, 0, 3 ) . str_repeat( '•', 6 ) . substr( $value, -3 );
-	}
-
 	/* --------------------------------------------------------------------- *
 	 * Page + actions
 	 * --------------------------------------------------------------------- */
@@ -797,6 +845,8 @@ class Coywolf_CVM_Settings {
 				$class  = ( 'ok' === $status ) ? 'notice-success' : 'notice-error';
 				$text   = ( 'ok' === $status ) ? __( 'Connection successful.', 'coywolf-video-manager' ) : (string) $status;
 				echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
+			} elseif ( 'token_removed' === $notice ) {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Saved API token removed.', 'coywolf-video-manager' ) . '</p></div>';
 			} elseif ( 'webhook' === $notice ) {
 				$status = (string) get_transient( 'coywolf_cvm_webhook_status' );
 				if ( 'on' === $status ) {
@@ -831,6 +881,23 @@ class Coywolf_CVM_Settings {
 		set_transient( 'coywolf_cvm_conn_status', $status, 5 * MINUTE_IN_SECONDS );
 
 		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'tested', $this->page_url() ) );
+		exit;
+	}
+
+	/**
+	 * Handle the Remove link on the API token field: delete the saved token so
+	 * the plugin falls back to a wp-config constant / environment variable (or
+	 * to no token at all).
+	 */
+	public function handle_remove_token() {
+		if ( ! current_user_can( Coywolf_Video_Manager::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to do that.', 'coywolf-video-manager' ) );
+		}
+		check_admin_referer( 'coywolf_cvm_remove_token' );
+
+		delete_option( 'coywolf_cvm_api_token' );
+
+		wp_safe_redirect( add_query_arg( 'coywolf_cvm_notice', 'token_removed', $this->page_url() ) );
 		exit;
 	}
 

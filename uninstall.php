@@ -21,8 +21,16 @@ global $wpdb;
 // silently when credentials are gone or the webhook was never enabled.
 $coywolf_cvm_webhook = get_option( 'coywolf_cvm_webhook', array() );
 if ( is_array( $coywolf_cvm_webhook ) && ! empty( $coywolf_cvm_webhook['secret'] ) ) {
-	$coywolf_cvm_token   = defined( 'COYWOLF_CVM_API_TOKEN' ) ? COYWOLF_CVM_API_TOKEN : (string) get_option( 'coywolf_cvm_api_token', '' );
-	$coywolf_cvm_account = defined( 'COYWOLF_CVM_ACCOUNT_ID' ) ? COYWOLF_CVM_ACCOUNT_ID : (string) get_option( 'coywolf_cvm_account_id', '' );
+	// Resolve credentials the same way the plugin does: saved option, else the
+	// wp-config constant, else the same-named environment variable.
+	$coywolf_cvm_token = (string) get_option( 'coywolf_cvm_api_token', '' );
+	if ( '' === $coywolf_cvm_token ) {
+		$coywolf_cvm_token = defined( 'COYWOLF_CVM_API_TOKEN' ) ? (string) COYWOLF_CVM_API_TOKEN : (string) getenv( 'COYWOLF_CVM_API_TOKEN' );
+	}
+	$coywolf_cvm_account = (string) get_option( 'coywolf_cvm_account_id', '' );
+	if ( '' === $coywolf_cvm_account ) {
+		$coywolf_cvm_account = defined( 'COYWOLF_CVM_ACCOUNT_ID' ) ? (string) COYWOLF_CVM_ACCOUNT_ID : (string) getenv( 'COYWOLF_CVM_ACCOUNT_ID' );
+	}
 	if ( '' !== $coywolf_cvm_token && '' !== $coywolf_cvm_account ) {
 		wp_remote_request(
 			'https://api.cloudflare.com/client/v4/accounts/' . rawurlencode( $coywolf_cvm_account ) . '/stream/webhook',

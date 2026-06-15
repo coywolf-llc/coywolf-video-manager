@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.51
+- **Version:** 1.0.52
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -35,7 +35,7 @@ Settings are locked until you connect a Cloudflare account. You'll need two thin
 1. **Account ID** — find it on the right-hand sidebar of any page in the [Cloudflare dashboard](https://dash.cloudflare.com/), or in the Stream section's API panel.
 2. **API token** — create one at **My Profile → API Tokens → Create Token → Custom token** with the **Account › Stream › Edit** permission (read and manage videos, captions, and uploads).
 
-Paste both into **Videos → Settings** and use **Test connection** to verify. The token is stored server-side and never exposed to the browser. You can instead define `COYWOLF_CVM_API_TOKEN` and `COYWOLF_CVM_ACCOUNT_ID` in `wp-config.php`, in which case the fields are locked.
+Paste both into **Videos → Settings** and use **Test connection** to verify. The token is stored server-side and never exposed to the browser. For better security you can instead define `COYWOLF_CVM_API_TOKEN` and `COYWOLF_CVM_ACCOUNT_ID` in `wp-config.php` (or set matching environment variables), keeping the credentials out of the database. A value saved in Settings takes precedence over the constant; leave the field empty (or use Remove on the token) to fall back to the `wp-config.php` value.
 
 ## Installation
 
@@ -107,6 +107,9 @@ Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name/description figcap
 4. Settings.
 
 ## Changelog
+
+### 1.0.52
+- Cloudflare credentials: support `wp-config.php` constants and environment variables with a saved value taking precedence, editable fields, a Remove option, and a status row showing the active source (#53).
 
 ### 1.0.51
 - Updater: run GitHub release checks in the background so the Updates screen never hangs (#52).
