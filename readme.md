@@ -101,10 +101,35 @@ Classes: `.coywolf-cvm` (wrapper), `.coywolf-cvm-title` (name/description figcap
 
 ## Screenshots
 
-1. The All Videos screen.
-2. Editing a video.
-3. The video block and its options in the editor.
-4. Settings.
+### All Videos
+The All Videos library with sortable columns for plays, likes, posts, and pages, plus bulk actions, filtering, and search.
+
+![All Videos](.wordpress-org/screenshot-1.png)
+
+### Edit Video
+Editing a video's name, description, creator, allowed origins, and poster image or timestamp.
+
+![Edit Video](.wordpress-org/screenshot-2.png)
+
+### Upload Video
+Uploading a video by file or remote URL, with a live Cloudflare Stream storage meter.
+
+![Upload Video](.wordpress-org/screenshot-3.png)
+
+### Settings
+Connecting a Cloudflare account via Account ID and API token, with connection status and webhook controls.
+
+![Settings](.wordpress-org/screenshot-4.png)
+
+### Appearance
+Appearance settings with a live preview, color scheme, and alignment controls for the video block.
+
+![Appearance](.wordpress-org/screenshot-5.png)
+
+### Video block
+A published video block showing the poster, description, like button, view count, date, and transcript toggle.
+
+![Video block](.wordpress-org/screenshot-6.png)
 
 ## Changelog
 
