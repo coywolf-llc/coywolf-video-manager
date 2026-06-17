@@ -65,10 +65,12 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 
 == Screenshots ==
 
-1. The All Videos screen.
-2. Editing a video.
-3. The video block and its options in the editor.
-4. Settings.
+1. The All Videos library with sortable columns for plays, likes, posts, and pages, plus bulk actions, filtering, and search.
+2. Editing a video's name, description, creator, allowed origins, and poster image or timestamp.
+3. Uploading a video by file or remote URL, with a live Cloudflare Stream storage meter.
+4. Connecting a Cloudflare account via Account ID and API token, with connection status and webhook controls.
+5. Appearance settings with a live preview, color scheme, and alignment controls for the video block.
+6. A published video block showing the poster, description, like button, view count, date, and transcript toggle.
 
 == Changelog ==
 
