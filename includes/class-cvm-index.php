@@ -51,6 +51,25 @@ class Coywolf_CVM_Index {
 	}
 
 	/**
+	 * Whether a video UID is embedded in any published content on this site.
+	 *
+	 * Used to gate public stats writes: play/like rows are only created for
+	 * UIDs that actually appear on the site, so an anonymous caller can't
+	 * bloat the stats/likes tables with rows for arbitrary made-up UIDs.
+	 *
+	 * @param string $uid Video UID.
+	 * @return bool
+	 */
+	public static function is_embedded( $uid ) {
+		if ( ! is_string( $uid ) || '' === $uid ) {
+			return false;
+		}
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE uid = %s LIMIT 1', self::usage_table(), $uid ) );
+	}
+
+	/**
 	 * Create the usage table on activation.
 	 */
 	public static function create_tables() {
