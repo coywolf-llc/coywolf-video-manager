@@ -179,6 +179,15 @@ class Coywolf_CVM_Stats {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$affected = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET plays = plays + 1, updated = %s WHERE uid = %s', self::stats_table(), $now, $uid ) );
 		if ( ! $affected ) {
+			if ( ! Coywolf_CVM_Index::is_embedded( $uid ) ) {
+				// No existing row was updated and this UID isn't embedded
+				// anywhere on the site: refuse to create a row so anonymous
+				// callers can't bloat the stats table with arbitrary UIDs.
+				return array(
+					'plays'     => 0,
+					'throttled' => false,
+				);
+			}
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->insert(
 				self::stats_table(),
@@ -214,6 +223,14 @@ class Coywolf_CVM_Stats {
 			$wpdb->delete( self::likes_table(), array( 'uid' => $uid, 'voter_hash' => $voter_hash ), array( '%s', '%s' ) );
 			$liked = false;
 		} else {
+			if ( ! Coywolf_CVM_Index::is_embedded( $uid ) ) {
+				// Don't create a like row for a UID that isn't embedded
+				// anywhere on the site (anti-bloat; matches record_play()).
+				return array(
+					'liked' => false,
+					'likes' => 0,
+				);
+			}
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->insert(
 				self::likes_table(),
