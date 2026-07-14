@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.56
+- **Version:** 1.0.57
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -132,6 +132,9 @@ A published video block showing the poster, description, like button, view count
 ![Video block](.wordpress-org/screenshot-6.png)
 
 ## Changelog
+
+### 1.0.57
+- Fix: don't set the play-throttle transient for non-embedded UIDs (#58).
 
 ### 1.0.56
 - readme: disclose upload data flow + add Cloudflare ToS link (#57).
