@@ -6,3 +6,7 @@ build/
 *.log
 .DS_Store
 node_modules/
+
+# Local testing secrets — never commit
+.env
+.env.*
