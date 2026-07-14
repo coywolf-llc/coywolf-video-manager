@@ -540,9 +540,7 @@
 		var progress = root.querySelector( '.coywolf-cvm-progress' );
 		var bar = root.querySelector( '.coywolf-cvm-progress-bar' );
 		var listUrl = root.getAttribute( 'data-list-url' );
-
-		// 50 MB — a multiple of 256 KiB, as Cloudflare's TUS endpoint requires.
-		var TUS_CHUNK = 52428800;
+		var uploader = window.coywolfCVMUpload;
 
 		function fieldValue( id ) {
 			var el = document.getElementById( id );
@@ -605,89 +603,18 @@
 			} );
 		}
 
-		// Minimal TUS 1.0.0 client: sequential PATCH chunks; on a hiccup,
-		// HEAD re-asks Cloudflare how much it has and resumes from there.
-		function tusUpload( uploadURL, file, done, error ) {
-			var offset = 0;
-			var attempts = 0;
-
-			function report( loaded ) {
-				var total = Math.min( file.size, offset + loaded );
-				bar.style.width = ( file.size > 0 ? Math.round( ( total / file.size ) * 100 ) : 0 ) + '%';
-			}
-
-			function resync() {
-				var xhr = new XMLHttpRequest();
-				xhr.open( 'HEAD', uploadURL, true );
-				xhr.setRequestHeader( 'Tus-Resumable', '1.0.0' );
-				xhr.onload = function () {
-					var at = parseInt( xhr.getResponseHeader( 'Upload-Offset' ), 10 );
-					if ( ! isNaN( at ) ) {
-						offset = at;
-					}
-					sendChunk();
-				};
-				xhr.onerror = function () {
-					sendChunk();
-				};
-				xhr.send();
-			}
-
-			function retry() {
-				attempts += 1;
-				if ( attempts > 5 ) {
-					error();
-					return;
-				}
-				statusEl.textContent = i18n.retrying || 'Connection hiccup — resuming upload…';
-				window.setTimeout( resync, 2000 * attempts );
-			}
-
-			function sendChunk() {
-				if ( offset >= file.size ) {
-					done();
-					return;
-				}
-				var xhr = new XMLHttpRequest();
-				xhr.open( 'PATCH', uploadURL, true );
-				xhr.setRequestHeader( 'Tus-Resumable', '1.0.0' );
-				xhr.setRequestHeader( 'Upload-Offset', String( offset ) );
-				xhr.setRequestHeader( 'Content-Type', 'application/offset+octet-stream' );
-				xhr.upload.onprogress = function ( e ) {
-					if ( e.lengthComputable ) {
-						report( e.loaded );
-					}
-				};
-				xhr.onload = function () {
-					if ( xhr.status >= 200 && xhr.status < 300 ) {
-						attempts = 0;
-						statusEl.textContent = i18n.uploading || 'Uploading…';
-						var at = parseInt( xhr.getResponseHeader( 'Upload-Offset' ), 10 );
-						if ( isNaN( at ) ) {
-							resync();
-							return;
-						}
-						offset = at;
-						sendChunk();
-					} else {
-						retry();
-					}
-				};
-				xhr.onerror = function () {
-					retry();
-				};
-				xhr.send( file.slice( offset, Math.min( file.size, offset + TUS_CHUNK ) ) );
-			}
-
-			sendChunk();
-		}
-
-		// Upload a local file (chunked + resumable; no 200 MB ceiling).
+		// Upload a local file (chunked + resumable; no 200 MB ceiling). The
+		// resumable TUS client lives in js/upload.js and is shared with the
+		// block's in-editor uploader.
 		startBtn.addEventListener( 'click', function () {
 			var fileInput = document.getElementById( 'cvm-up-file' );
 			var file = fileInput.files && fileInput.files[ 0 ];
 			if ( ! file ) {
 				statusEl.textContent = i18n.pickVideo || 'Choose a video file first.';
+				return;
+			}
+			if ( ! uploader ) {
+				statusEl.textContent = '✗ ' + ( i18n.uploadFailed || 'Upload failed.' );
 				return;
 			}
 			setBusy( true );
@@ -703,11 +630,22 @@
 				}
 				progress.style.display = 'block';
 				statusEl.textContent = i18n.uploading || 'Uploading…';
-				tusUpload( res.uploadURL, file, function () {
-					statusEl.textContent = i18n.processing || 'Uploaded. Cloudflare is processing the video…';
-					applyAndFinish( res.uid );
-				}, function () {
-					fail( i18n.uploadFailed || 'Upload failed.' );
+				uploader.tus( res.uploadURL, file, {
+					onProgress: function ( fraction ) {
+						bar.style.width = Math.round( fraction * 100 ) + '%';
+					},
+					onStatus: function ( state ) {
+						statusEl.textContent = 'retrying' === state
+							? ( i18n.retrying || 'Connection hiccup — resuming upload…' )
+							: ( i18n.uploading || 'Uploading…' );
+					},
+					onDone: function () {
+						statusEl.textContent = i18n.processing || 'Uploaded. Cloudflare is processing the video…';
+						applyAndFinish( res.uid );
+					},
+					onError: function () {
+						fail( i18n.uploadFailed || 'Upload failed.' );
+					}
 				} );
 			} ).catch( function ( e ) {
 				fail( errMsg( e ) );

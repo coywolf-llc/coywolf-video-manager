@@ -4,6 +4,63 @@
 	margin: 8px 0 16px;
 }
 
+/* Placeholder: "Select video" + "Upload video" side by side. */
+.coywolf-cvm-placeholder-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* In-editor uploader modal (a port of the Upload Video screen). */
+.coywolf-cvm-uploader-modal .components-modal__content {
+	min-width: min( 90vw, 520px );
+}
+
+.coywolf-cvm-upload-field {
+	margin-bottom: 16px;
+}
+
+.coywolf-cvm-upload-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.coywolf-cvm-upload-field input[type="file"] {
+	display: block;
+	width: 100%;
+}
+
+.coywolf-cvm-upload-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 4px;
+}
+
+.coywolf-cvm-upload-spinner {
+	margin: 12px 0 4px;
+}
+
+.coywolf-cvm-upload-progress {
+	height: 18px;
+	margin: 12px 0 4px;
+	overflow: hidden;
+	background: #f0f0f1;
+	border-radius: 4px;
+}
+
+.coywolf-cvm-upload-bar {
+	width: 0;
+	height: 100%;
+	background: #2271b1;
+	transition: width 0.2s ease;
+}
+
+.coywolf-cvm-upload-status {
+	margin-top: 8px;
+}
+
 .coywolf-cvm-picker .components-modal__content {
 	min-width: min( 80vw, 760px );
 }

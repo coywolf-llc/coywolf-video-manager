@@ -115,10 +115,11 @@ class Coywolf_CVM_Block {
 			return;
 		}
 
+		self::register_upload_script();
 		wp_register_script(
 			'coywolf-cvm-block',
 			COYWOLF_CVM_URL . 'js/block.js',
-			array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n', 'wp-api-fetch', 'wp-server-side-render', 'wp-data' ),
+			array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n', 'wp-api-fetch', 'wp-server-side-render', 'wp-data', 'coywolf-cvm-upload' ),
 			Coywolf_Video_Manager::VERSION,
 			true
 		);
@@ -157,6 +158,25 @@ class Coywolf_CVM_Block {
 		register_block_type(
 			COYWOLF_CVM_PATH,
 			array( 'render_callback' => array( $this, 'render' ) )
+		);
+	}
+
+	/**
+	 * Register the shared resumable-upload client (js/upload.js). It has no
+	 * dependencies and is used by both the block's in-editor uploader and the
+	 * Upload Video admin screen, so either context can register it; the guard
+	 * makes the call idempotent.
+	 */
+	public static function register_upload_script() {
+		if ( wp_script_is( 'coywolf-cvm-upload', 'registered' ) ) {
+			return;
+		}
+		wp_register_script(
+			'coywolf-cvm-upload',
+			COYWOLF_CVM_URL . 'js/upload.js',
+			array(),
+			Coywolf_Video_Manager::VERSION,
+			true
 		);
 	}
 

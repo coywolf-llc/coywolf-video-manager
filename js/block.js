@@ -267,6 +267,280 @@
 	}
 
 	/**
+	 * Upload modal — a modal port of the Upload Video admin screen. Uploads a
+	 * local file to Cloudflare (resumable, chunked, via the shared upload.js
+	 * client) or imports one from a URL, waits for processing, then hands the
+	 * finished video back to the block through props.onUploaded.
+	 */
+	function Uploader( props ) {
+		var nameState = useState( '' );
+		var name = nameState[ 0 ];
+		var setName = nameState[ 1 ];
+		var creatorState = useState( '' );
+		var creator = creatorState[ 0 ];
+		var setCreator = creatorState[ 1 ];
+		var originsState = useState( '' );
+		var originsText = originsState[ 0 ];
+		var setOriginsText = originsState[ 1 ];
+		var urlState = useState( '' );
+		var url = urlState[ 0 ];
+		var setUrl = urlState[ 1 ];
+
+		var busyState = useState( false );
+		var busy = busyState[ 0 ];
+		var setBusy = busyState[ 1 ];
+		// -1 hides the determinate bar (used for the file upload); a URL import
+		// and post-upload processing are indeterminate and show a spinner.
+		var progressState = useState( -1 );
+		var progress = progressState[ 0 ];
+		var setProgress = progressState[ 1 ];
+		var statusState = useState( '' );
+		var status = statusState[ 0 ];
+		var setStatus = statusState[ 1 ];
+
+		var fileRef = useRef( null );
+		// Guards async callbacks (upload chunks, poll timers) from touching
+		// state or applying the video after the modal has been closed.
+		var aliveRef = useRef( true );
+		useEffect( function () {
+			aliveRef.current = true;
+			return function () {
+				aliveRef.current = false;
+			};
+		}, [] );
+
+		function origins() {
+			return originsText.split( /\n+/ ).map( function ( s ) {
+				return s.trim();
+			} ).filter( Boolean );
+		}
+
+		function fail( message ) {
+			if ( ! aliveRef.current ) {
+				return;
+			}
+			setBusy( false );
+			// Hide the determinate bar so a frozen partial bar doesn't sit under
+			// the error text.
+			setProgress( -1 );
+			setStatus( '✗ ' + message );
+		}
+
+		// Poll until Cloudflare finishes processing, then hand the video to the
+		// block. Mirrors the admin uploader's poll loop (~2 min cap); instead of
+		// redirecting, it applies the finished video's metadata to the block.
+		function pollReady( uid, tries ) {
+			if ( ! aliveRef.current ) {
+				return;
+			}
+			apiFetch( { path: '/coywolf-cvm/v1/videos/' + encodeURIComponent( uid ) } ).then( function ( v ) {
+				if ( ! aliveRef.current ) {
+					return;
+				}
+				if ( v && 'error' === v.state ) {
+					fail( __( 'Cloudflare could not process the video.', 'coywolf-video-manager' ) );
+					return;
+				}
+				if ( v && v.ready ) {
+					props.onUploaded( v );
+				} else if ( tries >= 40 ) {
+					// Still processing after ~2 minutes — hand over what we have
+					// (the block re-fetches metadata and Cloudflare keeps going).
+					props.onUploaded( v || { uid: uid, name: name } );
+				} else {
+					window.setTimeout( function () {
+						pollReady( uid, tries + 1 );
+					}, 3000 );
+				}
+			} ).catch( function () {
+				if ( ! aliveRef.current ) {
+					return;
+				}
+				if ( tries >= 40 ) {
+					props.onUploaded( { uid: uid, name: name } );
+				} else {
+					window.setTimeout( function () {
+						pollReady( uid, tries + 1 );
+					}, 3000 );
+				}
+			} );
+		}
+
+		// After the raw upload, push creator/allowed origins (TUS metadata only
+		// carried the name), then wait for processing.
+		function applyAndFinish( uid ) {
+			var data = {};
+			if ( creator.trim() ) {
+				data.creator = creator.trim();
+			}
+			var allowed = origins();
+			if ( allowed.length ) {
+				data.allowedOrigins = allowed;
+			}
+			var apply = Object.keys( data ).length
+				? apiFetch( { path: '/coywolf-cvm/v1/videos/' + encodeURIComponent( uid ), method: 'POST', data: data } ).catch( function () {} )
+				: Promise.resolve();
+			apply.then( function () {
+				pollReady( uid, 0 );
+			} );
+		}
+
+		function startUpload() {
+			var file = fileRef.current && fileRef.current.files && fileRef.current.files[ 0 ];
+			if ( ! file ) {
+				setStatus( __( 'Choose a video file first.', 'coywolf-video-manager' ) );
+				return;
+			}
+			if ( ! window.coywolfCVMUpload ) {
+				setStatus( '✗ ' + __( 'The uploader failed to load.', 'coywolf-video-manager' ) );
+				return;
+			}
+			setBusy( true );
+			setStatus( __( 'Preparing upload…', 'coywolf-video-manager' ) );
+			apiFetch( {
+				path: '/coywolf-cvm/v1/tus-upload',
+				method: 'POST',
+				data: { length: file.size, name: name.trim() || file.name, creator: creator.trim() }
+			} ).then( function ( res ) {
+				if ( ! aliveRef.current ) {
+					return;
+				}
+				if ( ! res || ! res.uploadURL || ! res.uid ) {
+					throw new Error( __( 'No upload URL returned.', 'coywolf-video-manager' ) );
+				}
+				setProgress( 0 );
+				setStatus( __( 'Uploading…', 'coywolf-video-manager' ) );
+				window.coywolfCVMUpload.tus( res.uploadURL, file, {
+					onProgress: function ( fraction ) {
+						if ( aliveRef.current ) {
+							setProgress( Math.round( fraction * 100 ) );
+						}
+					},
+					onStatus: function ( state ) {
+						if ( aliveRef.current ) {
+							setStatus( 'retrying' === state
+								? __( 'Connection hiccup — resuming upload…', 'coywolf-video-manager' )
+								: __( 'Uploading…', 'coywolf-video-manager' ) );
+						}
+					},
+					onDone: function () {
+						if ( ! aliveRef.current ) {
+							return;
+						}
+						// Processing is indeterminate — swap the full bar for the
+						// spinner while we poll Cloudflare.
+						setProgress( -1 );
+						setStatus( __( 'Uploaded. Cloudflare is processing the video…', 'coywolf-video-manager' ) );
+						applyAndFinish( res.uid );
+					},
+					onError: function () {
+						fail( __( 'Upload failed.', 'coywolf-video-manager' ) );
+					}
+				} );
+			} ).catch( function ( e ) {
+				fail( ( e && e.message ) ? e.message : __( 'Upload failed.', 'coywolf-video-manager' ) );
+			} );
+		}
+
+		function startUrl() {
+			var link = url.trim();
+			if ( ! link ) {
+				setStatus( __( 'Enter a video URL first.', 'coywolf-video-manager' ) );
+				return;
+			}
+			setBusy( true );
+			// Indeterminate: Cloudflare fetches the URL server-side. Keep the
+			// determinate bar hidden (progress = -1) and show a spinner.
+			setProgress( -1 );
+			setStatus( __( 'Cloudflare is fetching the video from the URL…', 'coywolf-video-manager' ) );
+			apiFetch( {
+				path: '/coywolf-cvm/v1/copy',
+				method: 'POST',
+				data: { url: link, name: name.trim(), creator: creator.trim(), allowedOrigins: origins() }
+			} ).then( function ( v ) {
+				if ( ! aliveRef.current ) {
+					return;
+				}
+				if ( ! v || ! v.uid ) {
+					throw new Error( __( 'No video returned.', 'coywolf-video-manager' ) );
+				}
+				setStatus( __( 'Cloudflare is processing the video…', 'coywolf-video-manager' ) );
+				pollReady( v.uid, 0 );
+			} ).catch( function ( e ) {
+				fail( ( e && e.message ) ? e.message : __( 'Import failed.', 'coywolf-video-manager' ) );
+			} );
+		}
+
+		return el(
+			Modal,
+			{
+				title: __( 'Upload video', 'coywolf-video-manager' ),
+				onRequestClose: props.onClose,
+				className: 'coywolf-cvm-uploader-modal'
+			},
+			el(
+				'div',
+				{ className: 'coywolf-cvm-upload-field' },
+				el( 'label', { htmlFor: 'coywolf-cvm-up-file' }, __( 'Video file', 'coywolf-video-manager' ) ),
+				el( 'input', { id: 'coywolf-cvm-up-file', type: 'file', accept: 'video/*', ref: fileRef, disabled: busy } ),
+				el( 'p', { className: 'components-base-control__help' }, __( 'Large files are supported — the upload is sent in chunks and resumes after connection hiccups.', 'coywolf-video-manager' ) )
+			),
+			el( TextControl, {
+				label: __( 'Or add from a URL', 'coywolf-video-manager' ),
+				value: url,
+				type: 'url',
+				placeholder: 'https://example.com/video.mp4',
+				disabled: busy,
+				help: __( 'Cloudflare fetches the video directly from a publicly accessible URL — nothing passes through this site.', 'coywolf-video-manager' ),
+				__nextHasNoMarginBottom: true,
+				onChange: setUrl
+			} ),
+			el( TextControl, {
+				label: __( 'Name', 'coywolf-video-manager' ),
+				value: name,
+				disabled: busy,
+				__nextHasNoMarginBottom: true,
+				onChange: setName
+			} ),
+			el( TextControl, {
+				label: __( 'Creator', 'coywolf-video-manager' ),
+				value: creator,
+				disabled: busy,
+				__nextHasNoMarginBottom: true,
+				onChange: setCreator
+			} ),
+			el( TextareaControl, {
+				label: __( 'Allowed origins (one per line)', 'coywolf-video-manager' ),
+				value: originsText,
+				rows: 3,
+				placeholder: 'example.com',
+				disabled: busy,
+				__nextHasNoMarginBottom: true,
+				onChange: setOriginsText
+			} ),
+			el(
+				'div',
+				{ className: 'coywolf-cvm-upload-actions' },
+				el( Button, { variant: 'primary', onClick: startUpload, disabled: busy }, __( 'Upload to Cloudflare', 'coywolf-video-manager' ) ),
+				el( Button, { variant: 'secondary', onClick: startUrl, disabled: busy }, __( 'Add from URL', 'coywolf-video-manager' ) )
+			),
+			( busy && progress < 0 )
+				? el( 'div', { className: 'coywolf-cvm-upload-spinner' }, el( Spinner, {} ) )
+				: null,
+			progress >= 0
+				? el(
+					'div',
+					{ className: 'coywolf-cvm-upload-progress' },
+					el( 'div', { className: 'coywolf-cvm-upload-bar', style: { width: progress + '%' } } )
+				)
+				: null,
+			status
+				? el( 'div', { className: 'coywolf-cvm-upload-status', role: 'status', 'aria-live': 'polite' }, status )
+				: null
+		);
+	}
+
+	/**
 	 * Block edit.
 	 */
 	function Edit( props ) {
@@ -278,6 +552,9 @@
 		var pickerState = useState( false );
 		var pickerOpen = pickerState[ 0 ];
 		var setPickerOpen = pickerState[ 1 ];
+		var uploaderState = useState( false );
+		var uploaderOpen = uploaderState[ 0 ];
+		var setUploaderOpen = uploaderState[ 1 ];
 
 		// The video's canonical name/description (what the Edit Video page
 		// shows) and the user's staged edits (null = untouched). Staged edits
@@ -732,17 +1009,31 @@
 				{
 					icon: 'video-alt3',
 					label: __( 'Coywolf Video', 'coywolf-video-manager' ),
-					instructions: __( 'Choose a video from your Cloudflare Stream library.', 'coywolf-video-manager' )
+					instructions: __( 'Choose a video from your Cloudflare Stream library, or upload a new one.', 'coywolf-video-manager' )
 				},
 				el(
-					Button,
-					{
-						variant: 'primary',
-						onClick: function () {
-							setPickerOpen( true );
-						}
-					},
-					__( 'Select video', 'coywolf-video-manager' )
+					'div',
+					{ className: 'coywolf-cvm-placeholder-actions' },
+					el(
+						Button,
+						{
+							variant: 'primary',
+							onClick: function () {
+								setPickerOpen( true );
+							}
+						},
+						__( 'Select video', 'coywolf-video-manager' )
+					),
+					el(
+						Button,
+						{
+							variant: 'secondary',
+							onClick: function () {
+								setUploaderOpen( true );
+							}
+						},
+						__( 'Upload video', 'coywolf-video-manager' )
+					)
 				)
 			);
 		} else {
@@ -752,26 +1043,43 @@
 			} );
 		}
 
+		// Point the block at a video (from the picker or a fresh upload).
+		function applyVideo( v ) {
+			var ratio = ( v.width > 0 && v.height > 0 ) ? ( v.height / v.width ) : 0;
+			setAttributes( {
+				videoId: v.uid,
+				videoName: v.name || v.uid,
+				duration: v.duration || 0,
+				aspectRatio: ratio,
+				uploaded: v.created || ''
+			} );
+		}
+
 		var modal = pickerOpen
 			? el( Picker, {
 				onClose: function () {
 					setPickerOpen( false );
 				},
 				onSelect: function ( v ) {
-					var ratio = ( v.width > 0 && v.height > 0 ) ? ( v.height / v.width ) : 0;
-					setAttributes( {
-						videoId: v.uid,
-						videoName: v.name || v.uid,
-						duration: v.duration || 0,
-						aspectRatio: ratio,
-						uploaded: v.created || ''
-					} );
+					applyVideo( v );
 					setPickerOpen( false );
 				}
 			} )
 			: null;
 
-		return el( Fragment, {}, inspector, el( 'div', blockProps, body ), modal );
+		var uploaderModal = uploaderOpen
+			? el( Uploader, {
+				onClose: function () {
+					setUploaderOpen( false );
+				},
+				onUploaded: function ( v ) {
+					applyVideo( v );
+					setUploaderOpen( false );
+				}
+			} )
+			: null;
+
+		return el( Fragment, {}, inspector, el( 'div', blockProps, body ), modal, uploaderModal );
 	}
 
 	/**
