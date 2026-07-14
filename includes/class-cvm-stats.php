@@ -172,7 +172,6 @@ class Coywolf_CVM_Stats {
 				'throttled' => true,
 			);
 		}
-		set_transient( $throttle_key, 1, self::PLAY_THROTTLE );
 
 		global $wpdb;
 		$now = current_time( 'mysql', true );
@@ -181,8 +180,9 @@ class Coywolf_CVM_Stats {
 		if ( ! $affected ) {
 			if ( ! Coywolf_CVM_Index::is_embedded( $uid ) ) {
 				// No existing row was updated and this UID isn't embedded
-				// anywhere on the site: refuse to create a row so anonymous
-				// callers can't bloat the stats table with arbitrary UIDs.
+				// anywhere on the site: record nothing — neither a stats row nor
+				// a throttle transient — so anonymous callers can't bloat the
+				// stats table or the options table with arbitrary UIDs.
 				return array(
 					'plays'     => 0,
 					'throttled' => false,
@@ -200,6 +200,12 @@ class Coywolf_CVM_Stats {
 				array( '%s', '%d', '%d', '%s' )
 			);
 		}
+
+		// Throttle only after a real play has been recorded (an existing row was
+		// bumped, or a new row was inserted for an embedded UID). Setting it
+		// before the embedded check would leave a transient behind for every
+		// arbitrary UID a public caller probes.
+		set_transient( $throttle_key, 1, self::PLAY_THROTTLE );
 
 		return array(
 			'plays'     => $this->get_counts( $uid )['plays'],
