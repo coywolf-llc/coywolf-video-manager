@@ -16,13 +16,13 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 
 Features:
 
-* Video block — search your entire Stream library and embed a responsive video in a figure/figcaption, with per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
+* Video block — search your entire Stream library and embed a responsive video in a figure/figcaption, or upload a new video to Cloudflare without leaving the editor. Per-block control over size (responsive or max-width), poster (by timestamp or Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
 * Cloudflare Stream player — the official Stream player, with an optional play-button accent color.
 * Likes, views & upload date — a YouTube-style row under each video. Cloudflare's API does not expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
 * Video schema — automatic VideoObject JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts. Videos with captions also get a full plain-text transcript and a downloadable caption VTT track (linked straight from Cloudflare, or mirrored into the uploads folder when Cloudflare doesn't serve it publicly).
 * All Videos screen — a table of every video with views, likes, and how many posts and pages embed each one.
 * Edit Video screen — rename, add a description (used in schema + the sitemap), set the creator, manage allowed origins, choose the poster (a timestamp with a live preview, or a Media Library image at the recommended size), copy the video ID, and add or AI-generate captions.
-* Upload to Cloudflare — upload videos straight from WordPress, then jump to the Edit screen when processing finishes.
+* Upload to Cloudflare — upload videos straight from WordPress on the Upload Video screen, or from the block itself when adding a video, then jump to the Edit screen when processing finishes.
 * Video XML sitemap — optionally serve /coywolf-video-sitemap.xml (named to avoid clashing with Yoast SEO) listing every page and post that embeds a video, with full Google video tags (thumbnail, title, description, content and player URLs, duration, publication date, view count).
 * Safe deletes — deleting a video removes its block from any post or page that used it. And if a video was deleted in the Cloudflare dashboard instead, the All Videos screen flags any posts still embedding it and offers a one-click, re-verified cleanup.
 
@@ -57,7 +57,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 == Privacy & third-party services ==
 
-Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to Cloudflare Stream on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to manage videos. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's privacy policy at https://www.cloudflare.com/privacypolicy/.
+Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to Cloudflare Stream on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to list, edit, and manage videos, to upload video files you choose (from the Upload Video screen or the block), and — when you add a video by URL — to have Cloudflare fetch that URL. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's terms of service at https://www.cloudflare.com/website-terms/ and privacy policy at https://www.cloudflare.com/privacypolicy/.
 
 == Styling with CSS ==
 
