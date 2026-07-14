@@ -148,7 +148,10 @@ class Coywolf_CVM_Admin {
 		if ( isset( $this->hooks['list'] ) && $hook === $this->hooks['list'] ) {
 			wp_enqueue_media();
 		}
-		wp_enqueue_script( 'coywolf-cvm-admin', COYWOLF_CVM_URL . 'js/admin.js', array( 'wp-api-fetch', 'wp-element', 'wp-i18n' ), Coywolf_Video_Manager::VERSION, true );
+		// The Upload Video screen sends files to Cloudflare with the shared
+		// resumable-upload client (also used by the block's in-editor uploader).
+		Coywolf_CVM_Block::register_upload_script();
+		wp_enqueue_script( 'coywolf-cvm-admin', COYWOLF_CVM_URL . 'js/admin.js', array( 'wp-api-fetch', 'wp-element', 'wp-i18n', 'coywolf-cvm-upload' ), Coywolf_Video_Manager::VERSION, true );
 		wp_add_inline_script(
 			'coywolf-cvm-admin',
 			'window.coywolfCVM = ' . wp_json_encode(
