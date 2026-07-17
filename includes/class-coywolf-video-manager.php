@@ -22,7 +22,7 @@ final class Coywolf_Video_Manager {
 	 * Plugin version. Kept in sync with the main-file "Version:" header by the
 	 * release workflow (it bumps both).
 	 */
-	const VERSION = '1.0.57';
+	const VERSION = '1.0.58';
 
 	/**
 	 * Capability that gates every admin screen and admin REST route.
