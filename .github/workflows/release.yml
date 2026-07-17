@@ -252,8 +252,10 @@ jobs:
       # stripped (bin/build-wporg.sh derives it from the SAME stage the GitHub
       # zip was built from, so the two differ only by the updater). The zip is
       # always produced as an artifact (for the initial .org submission and
-      # for local Plugin Check runs); the SVN deploy runs only once the
-      # WPORG_SVN_* secrets exist — until then it cleanly skips.
+      # for local Plugin Check runs). The SVN deploy is intentionally NOT
+      # automatic — WP.org guideline #14 (the directory is a release repo, not a
+      # dev one). Push a release to .org by running the manual
+      # ".github/workflows/deploy-wporg.yml" workflow when you decide to ship.
       # ----------------------------------------------------------------------
       - name: Build WordPress.org variant
         if: steps.tagcheck.outputs.exists == 'false'
@@ -286,26 +288,6 @@ jobs:
           path: coywolf-video-manager-wporg.zip
           if-no-files-found: error
 
-      - name: Check for WordPress.org SVN credentials
-        if: steps.tagcheck.outputs.exists == 'false'
-        id: wporg
-        env:
-          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
-        run: |
-          if [ -n "${SVN_USERNAME:-}" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No WPORG_SVN_USERNAME secret set — built the .org zip artifact; skipping SVN deploy."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Deploy to WordPress.org SVN
-        if: steps.tagcheck.outputs.exists == 'false' && steps.wporg.outputs.ready == 'true'
-        uses: 10up/action-wordpress-plugin-deploy@stable
-        env:
-          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
-          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
-          SLUG:         coywolf-video-manager
-          VERSION:      ${{ steps.final.outputs.version }}
-          BUILD_DIR:    ${{ runner.temp }}/wporg/coywolf-video-manager
-          ASSETS_DIR:   .wordpress-org
+      # The SVN deploy that used to live here was removed: pushing every release
+      # to .org violates WP.org guideline #14 (frequent commits). Deploys are now
+      # manual via .github/workflows/deploy-wporg.yml.
