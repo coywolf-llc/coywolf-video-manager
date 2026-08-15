@@ -122,6 +122,9 @@ class Coywolf_CVM_Settings {
 			'meta_color'          => '#606060',
 			'meta_size'           => 0.9,
 			'radius'              => 0,
+			'border_enabled'      => false,
+			'border_width'        => 1,
+			'border_color'        => '#eeeeee',
 		);
 	}
 
@@ -270,7 +273,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_align', __( 'Alignment', 'coywolf-video-manager' ), array( $this, 'render_appearance_align_field' ), self::PAGE, 'coywolf_cvm_appearance' );
-		add_settings_field( 'appearance_radius', __( 'Player corner radius', 'coywolf-video-manager' ), array( $this, 'render_appearance_radius_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_border', __( 'Player border', 'coywolf-video-manager' ), array( $this, 'render_appearance_border_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Name & description', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
@@ -342,6 +345,11 @@ class Coywolf_CVM_Settings {
 		$clean['meta_size']  = $this->sanitize_size( isset( $input['meta_size'] ) ? $input['meta_size'] : 0, $defaults['meta_size'] );
 
 		$clean['radius'] = isset( $input['radius'] ) ? max( 0, min( 48, (int) $input['radius'] ) ) : 0;
+
+		$clean['border_enabled'] = ! empty( $input['border_enabled'] );
+		$clean['border_width']   = isset( $input['border_width'] ) ? max( 0, min( 20, (int) $input['border_width'] ) ) : 1;
+		$border_color            = $this->sanitize_hex( isset( $input['border_color'] ) ? $input['border_color'] : '' );
+		$clean['border_color']   = '' !== $border_color ? $border_color : '#eeeeee';
 
 		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
@@ -649,9 +657,10 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Player corner radius (px).
+	 * Player border: corner radius, plus an optional border with a pixel width
+	 * and color.
 	 */
-	public function render_appearance_radius_field() {
+	public function render_appearance_border_field() {
 		printf(
 			'<p><label>%1$s <input type="number" min="0" max="48" step="1" name="%2$s[radius]" value="%3$d" class="small-text coywolf-cvm-field" data-key="radius" /> px</label></p>',
 			esc_html__( 'Corner radius', 'coywolf-video-manager' ),
@@ -659,6 +668,21 @@ class Coywolf_CVM_Settings {
 			(int) $this->get( 'radius' )
 		);
 		echo '<p class="description">' . esc_html__( 'Rounds the corners of the video player. 0 = square corners. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+
+		printf(
+			'<p style="margin-top:1em;"><label><input type="checkbox" class="coywolf-cvm-toggle" data-key="border_enabled" name="%1$s[border_enabled]" value="1"%2$s /> %3$s</label></p>',
+			esc_attr( self::OPTION ),
+			checked( (bool) $this->get( 'border_enabled' ), true, false ),
+			esc_html__( 'Add a border around the player', 'coywolf-video-manager' )
+		);
+		printf(
+			'<p><label>%1$s <input type="number" min="0" max="20" step="1" name="%2$s[border_width]" value="%3$d" class="small-text coywolf-cvm-field" data-key="border_width" /> px</label></p>',
+			esc_html__( 'Border width', 'coywolf-video-manager' ),
+			esc_attr( self::OPTION ),
+			(int) $this->get( 'border_width' )
+		);
+		$this->color_input( 'border_color', __( 'Border color', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'Draws a solid border around the video player. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**

@@ -29,6 +29,8 @@
 	--cvm-meta-color: #606060;
 	--cvm-meta-size: 0.9rem;
 	--cvm-radius: 0;
+	--cvm-border-width: 0;
+	--cvm-border-color: #eee;
 
 	margin: 0 0 1.5em;
 	padding: 0;
@@ -55,6 +57,7 @@
 .coywolf-cvm .coywolf-cvm-frame {
 	background: #000;
 	overflow: hidden;
+	border: var( --cvm-border-width ) solid var( --cvm-border-color );
 	border-radius: var( --cvm-radius );
 }
 

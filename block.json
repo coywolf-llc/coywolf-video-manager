@@ -43,7 +43,10 @@
 		"primaryColor": { "type": "string", "default": "" },
 		"contentAlign": { "type": "string" },
 		"metaAlign": { "type": "string" },
-		"radius": { "type": "number" }
+		"radius": { "type": "number" },
+		"showBorder": { "type": "boolean" },
+		"borderWidth": { "type": "number" },
+		"borderColor": { "type": "string", "default": "" }
 	},
 	"editorScript": "coywolf-cvm-block",
 	"editorStyle": "coywolf-cvm-block-editor",

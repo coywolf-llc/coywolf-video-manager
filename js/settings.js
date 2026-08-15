@@ -75,6 +75,17 @@
 		setVar( preview, '--cvm-radius', value + 'px' );
 	}
 
+	function applyBorder( preview ) {
+		var on = fieldChecked( 'border_enabled' );
+		var width = parseInt( fieldValue( 'border_width' ), 10 );
+		if ( isNaN( width ) || width < 0 ) {
+			width = 0;
+		}
+		var color = ( fieldValue( 'border_color' ) || '' ).trim() || '#eee';
+		setVar( preview, '--cvm-border-width', on ? ( width + 'px' ) : '0' );
+		setVar( preview, '--cvm-border-color', color );
+	}
+
 	function applyChoice( preview, key, name ) {
 		var value = fieldValue( key );
 		if ( value && value !== '' + defaults[ key ] ) {
@@ -131,6 +142,7 @@
 		applyChoice( preview, 'align', '--cvm-align' );
 		applyChoice( preview, 'meta_align', '--cvm-meta-align' );
 		applyRadius( preview );
+		applyBorder( preview );
 		applyIcon( preview );
 
 		// Show/hide the name, description, and their separator.

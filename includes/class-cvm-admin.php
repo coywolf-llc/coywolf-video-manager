@@ -222,6 +222,9 @@ class Coywolf_CVM_Admin {
 							'meta_color'   => $d['meta_color'],
 							'meta_size'    => $d['meta_size'],
 							'radius'       => $d['radius'],
+							'border_enabled' => $d['border_enabled'],
+							'border_width'   => $d['border_width'],
+							'border_color'   => $d['border_color'],
 						),
 						'icons'    => array(
 							'heart'  => Coywolf_CVM_Block::thumb_svg( 'heart' ),
