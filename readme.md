@@ -4,7 +4,7 @@
 
 Manage, embed, and upload your [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) videos without leaving the WordPress admin. Search your Stream library, drop a video into any post with a Gutenberg block, track plays and likes, output video schema, generate captions, and serve a video XML sitemap.
 
-- **Version:** 1.0.59
+- **Version:** 1.0.60
 - **Requires WordPress:** 6.3+
 - **Requires PHP:** 7.4+
 - **License:** GPL-2.0-or-later
@@ -134,6 +134,9 @@ A published video block showing the poster, description, like button, view count
 ![Video block](.wordpress-org/screenshot-6.png)
 
 ## Changelog
+
+### 1.0.60
+- Add a player border option (rename "Player corner radius" to "Player border") (#61).
 
 ### 1.0.59
 - Confirm WordPress 7.1 compatibility (Tested up to: 7.1) (#60).
