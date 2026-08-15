@@ -260,6 +260,11 @@ class Coywolf_CVM_Block {
 			$vars['--cvm-radius'] = $radius . 'px';
 		}
 
+		if ( ! empty( $this->settings->get( 'border_enabled' ) ) ) {
+			$vars['--cvm-border-width'] = max( 0, min( 20, (int) $this->settings->get( 'border_width' ) ) ) . 'px';
+			$vars['--cvm-border-color'] = $this->safe_hex( (string) $this->settings->get( 'border_color' ), '#eeeeee' );
+		}
+
 		if ( empty( $vars ) ) {
 			return '';
 		}
@@ -268,6 +273,25 @@ class Coywolf_CVM_Block {
 			$css .= $name . ':' . $value . ';';
 		}
 		return $css . '}';
+	}
+
+	/**
+	 * Validate a hex color before it's emitted into inline CSS; falls back when
+	 * the value (or the fallback) isn't a #rgb / #rrggbb literal.
+	 *
+	 * @param string $value    Candidate hex color.
+	 * @param string $fallback Fallback color.
+	 * @return string
+	 */
+	private function safe_hex( $value, $fallback ) {
+		$re = '/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/';
+		if ( preg_match( $re, (string) $value ) ) {
+			return (string) $value;
+		}
+		if ( preg_match( $re, (string) $fallback ) ) {
+			return (string) $fallback;
+		}
+		return '#eeeeee';
 	}
 
 	/**
@@ -398,6 +422,21 @@ class Coywolf_CVM_Block {
 		}
 		if ( isset( $attributes['radius'] ) && is_numeric( $attributes['radius'] ) ) {
 			$inline .= '--cvm-radius:' . max( 0, min( 48, (int) $attributes['radius'] ) ) . 'px;';
+		}
+		// Border (per-block override; else the Settings default applies via custom_css()).
+		if ( array_key_exists( 'showBorder', $attributes ) && null !== $attributes['showBorder'] ) {
+			if ( $attributes['showBorder'] ) {
+				$bw = ( isset( $attributes['borderWidth'] ) && is_numeric( $attributes['borderWidth'] ) )
+					? (int) $attributes['borderWidth']
+					: (int) $this->settings->get( 'border_width' );
+				$bc = ( isset( $attributes['borderColor'] ) && '' !== $attributes['borderColor'] )
+					? (string) $attributes['borderColor']
+					: (string) $this->settings->get( 'border_color' );
+				$inline .= '--cvm-border-width:' . max( 0, min( 20, $bw ) ) . 'px;';
+				$inline .= '--cvm-border-color:' . $this->safe_hex( $bc, (string) $this->settings->get( 'border_color' ) ) . ';';
+			} else {
+				$inline .= '--cvm-border-width:0;';
+			}
 		}
 		if ( '' !== $inline ) {
 			$attrs['style'] = $inline;

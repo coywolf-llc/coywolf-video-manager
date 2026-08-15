@@ -86,6 +86,8 @@ Style the on-post UI from **Videos → Settings → Appearance** (with a live pr
 | `--cvm-meta-color` | Views & date color | `#606060` |
 | `--cvm-meta-size` | Views & date size | `0.9rem` |
 | `--cvm-radius` | Player corner radius | `0` |
+| `--cvm-border-width` | Player border width | `0` |
+| `--cvm-border-color` | Player border color | `#eee` |
 
 Override them (or target the classes directly) from your theme:
 

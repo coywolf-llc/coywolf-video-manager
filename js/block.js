@@ -56,7 +56,8 @@
 		showDate: 'show_date',
 		dateFromPost: 'date_from_post',
 		showName: 'show_title',
-		showDescription: 'show_desc'
+		showDescription: 'show_desc',
+		showBorder: 'border_enabled'
 	};
 
 	function defaultBool( attr ) {
@@ -998,7 +999,38 @@
 					onChange: function ( v ) {
 						setAttributes( { radius: ( undefined === v ) ? undefined : v } );
 					}
-				} )
+				} ),
+				inheritToggle( 'showBorder', __( 'Show a border', 'coywolf-video-manager' ) ),
+				resolvedBool( 'showBorder' )
+					? el( RangeControl, {
+						label: __( 'Border width (px)', 'coywolf-video-manager' ),
+						value: ( undefined === a.borderWidth || null === a.borderWidth ) ? ( defaults.border_width || 1 ) : a.borderWidth,
+						min: 0,
+						max: 20,
+						step: 1,
+						allowReset: true,
+						__nextHasNoMarginBottom: true,
+						help: ( undefined === a.borderWidth || null === a.borderWidth ) ? __( 'Inheriting the site default.', 'coywolf-video-manager' ) : __( 'Overriding the site default.', 'coywolf-video-manager' ),
+						onChange: function ( v ) {
+							setAttributes( { borderWidth: ( undefined === v ) ? undefined : v } );
+						}
+					} )
+					: null,
+				resolvedBool( 'showBorder' )
+					? el(
+						BaseControl,
+						{ label: __( 'Border color', 'coywolf-video-manager' ), __nextHasNoMarginBottom: true },
+						el( ColorPalette, {
+							colors: [],
+							value: a.borderColor || ( defaults.border_color || '#eeeeee' ),
+							clearable: true,
+							disableCustomColors: false,
+							onChange: function ( v ) {
+								setAttributes( { borderColor: v || '' } );
+							}
+						} )
+					)
+					: null
 			)
 		);
 
