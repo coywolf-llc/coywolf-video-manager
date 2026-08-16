@@ -381,6 +381,82 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/**
+	 * Largest number of tags kept on a video, and the longest single tag.
+	 */
+	const MAX_TAGS    = 25;
+	const MAX_TAG_LEN = 50;
+
+	/**
+	 * Normalize a raw tags value (a comma/newline list, or an array) into a
+	 * clean, de-duplicated list of hashtag-style tokens: no leading '#', spaces
+	 * collapsed to hyphens, only [A-Za-z0-9_.-] kept, capped in length/count.
+	 *
+	 * @param mixed $raw Comma/newline-separated string or array of tags.
+	 * @return string[] Clean tag list (without the leading '#').
+	 */
+	public static function parse_tags( $raw ) {
+		$parts = is_array( $raw ) ? $raw : preg_split( '/[,\r\n]+/', (string) $raw );
+		$out   = array();
+		$seen  = array();
+		foreach ( (array) $parts as $part ) {
+			$tag = ltrim( trim( (string) $part ), '#' );
+			$tag = preg_replace( '/\s+/', '-', $tag );          // spaces → hyphens.
+			$tag = preg_replace( '/[^A-Za-z0-9_.-]+/', '', $tag ); // drop the rest.
+			$tag = trim( $tag, '-.' );
+			if ( '' === $tag ) {
+				continue;
+			}
+			if ( strlen( $tag ) > self::MAX_TAG_LEN ) {
+				$tag = substr( $tag, 0, self::MAX_TAG_LEN );
+			}
+			$key = strtolower( $tag );
+			if ( isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+			$out[]        = $tag;
+			if ( count( $out ) >= self::MAX_TAGS ) {
+				break;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * A video's tags, read from its Cloudflare meta.tags field.
+	 *
+	 * @param array $video Raw Cloudflare video object.
+	 * @return string[]
+	 */
+	public static function video_tags( $video ) {
+		$raw = isset( $video['meta']['tags'] ) ? $video['meta']['tags'] : '';
+		return self::parse_tags( $raw );
+	}
+
+	/**
+	 * Add tags to a video (union with its existing tags), preserving the rest of
+	 * its meta (name, etc.). Used by the All Videos bulk action.
+	 *
+	 * @param string   $uid Video UID.
+	 * @param string[] $add Tags to add.
+	 * @return array|WP_Error Updated video, or error.
+	 */
+	public function add_tags( $uid, $add ) {
+		$video = $this->get_video( $uid );
+		if ( is_wp_error( $video ) ) {
+			return $video;
+		}
+		$merged = self::parse_tags( array_merge( self::video_tags( $video ), (array) $add ) );
+		$meta   = ( isset( $video['meta'] ) && is_array( $video['meta'] ) ) ? $video['meta'] : array();
+		if ( empty( $merged ) ) {
+			unset( $meta['tags'] );
+		} else {
+			$meta['tags'] = implode( ', ', $merged );
+		}
+		return $this->update_video( $uid, array( 'meta' => $meta ) );
+	}
+
+	/**
 	 * Delete a video.
 	 *
 	 * @param string $uid Video UID.

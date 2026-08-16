@@ -97,6 +97,7 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			'cb'        => '<input type="checkbox" />',
 			'thumbnail' => __( 'Thumbnail', 'coywolf-video-manager' ),
 			'name'      => __( 'Name', 'coywolf-video-manager' ),
+			'tags'      => __( 'Tags', 'coywolf-video-manager' ),
 			'created'   => __( 'Created', 'coywolf-video-manager' ),
 			'plays'     => __( 'Plays', 'coywolf-video-manager' ),
 			'likes'     => __( 'Likes', 'coywolf-video-manager' ),
@@ -139,7 +140,10 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 	 * @return array
 	 */
 	public function get_bulk_actions() {
-		return array( 'delete' => __( 'Delete', 'coywolf-video-manager' ) );
+		return array(
+			'cvm_add_tags' => __( 'Add tags', 'coywolf-video-manager' ),
+			'delete'       => __( 'Delete', 'coywolf-video-manager' ),
+		);
 	}
 
 	/**
@@ -166,6 +170,12 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $current, $value, false ), esc_html( $label ) );
 		}
 		echo '</select>';
+		echo '</div>';
+
+		// Tags to apply with the "Add tags" bulk action (used by the top selector).
+		echo '<div class="alignleft actions">';
+		echo '<label class="screen-reader-text" for="coywolf-cvm-bulk-tags">' . esc_html__( 'Tags to add to selected videos', 'coywolf-video-manager' ) . '</label>';
+		echo '<input type="text" name="cvm_bulk_tags" id="coywolf-cvm-bulk-tags" class="coywolf-cvm-bulk-tags" value="" placeholder="' . esc_attr__( 'Tags to add (bulk)', 'coywolf-video-manager' ) . '" />';
 		echo '</div>';
 	}
 
@@ -195,6 +205,31 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		);
 
 		return '<strong><a class="row-title" href="' . esc_url( $edit_url ) . '">' . esc_html( $name ) . '</a></strong>' . $this->row_actions( $actions );
+	}
+
+	/**
+	 * Tags column: each tag is a #chip that filters the list by that tag
+	 * (clicking adds "#tag" to the search box).
+	 *
+	 * @param array $item Row.
+	 * @return string
+	 */
+	public function column_tags( $item ) {
+		if ( empty( $item['tags'] ) ) {
+			return '&#8212;';
+		}
+		$chips = array();
+		foreach ( $item['tags'] as $tag ) {
+			$url     = add_query_arg(
+				array(
+					'page' => Coywolf_CVM_Admin::PAGE,
+					's'    => '#' . $tag,
+				),
+				admin_url( 'admin.php' )
+			);
+			$chips[] = '<a href="' . esc_url( $url ) . '" class="coywolf-cvm-tag" data-tag="' . esc_attr( $tag ) . '">#' . esc_html( $tag ) . '</a>';
+		}
+		return '<span class="coywolf-cvm-tags">' . implode( ' ', $chips ) . '</span>';
 	}
 
 	/**
@@ -405,6 +440,7 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 			$rows[] = array(
 				'uid'        => $uid,
 				'name'       => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
+				'tags'       => Coywolf_CVM_Cloudflare::video_tags( $video ),
 				'thumbnail'  => isset( $video['thumbnail'] ) ? (string) $video['thumbnail'] : '',
 				'created_ts' => isset( $video['created'] ) ? (int) strtotime( (string) $video['created'] ) : 0,
 				'plays'      => 0,
@@ -428,16 +464,34 @@ class Coywolf_CVM_List_Table extends WP_List_Table {
 		}
 		unset( $row );
 
-		// Search by name OR video ID.
+		// Search: any #tag tokens filter by tag (all must match); the remaining
+		// text matches the name or video ID.
 		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( '' !== $search ) {
-			$needle = strtolower( $search );
-			$rows   = array_values(
+			$tag_filters = array();
+			if ( preg_match_all( '/#([A-Za-z0-9_.-]+)/', $search, $matches ) ) {
+				foreach ( $matches[1] as $tag ) {
+					$tag_filters[] = strtolower( $tag );
+				}
+			}
+			$text = strtolower( trim( (string) preg_replace( '/#[A-Za-z0-9_.-]+/', '', $search ) ) );
+			$rows = array_values(
 				array_filter(
 					$rows,
-					static function ( $row ) use ( $needle ) {
-						return false !== strpos( strtolower( $row['name'] ), $needle )
-							|| false !== strpos( strtolower( $row['uid'] ), $needle );
+					static function ( $row ) use ( $tag_filters, $text ) {
+						if ( ! empty( $tag_filters ) ) {
+							$row_tags = array_map( 'strtolower', $row['tags'] );
+							foreach ( $tag_filters as $needle ) {
+								if ( ! in_array( $needle, $row_tags, true ) ) {
+									return false;
+								}
+							}
+						}
+						if ( '' !== $text ) {
+							return false !== strpos( strtolower( $row['name'] ), $text )
+								|| false !== strpos( strtolower( $row['uid'] ), $text );
+						}
+						return true;
 					}
 				)
 			);

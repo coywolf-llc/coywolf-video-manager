@@ -244,13 +244,34 @@ class Coywolf_CVM_Admin {
 			return;
 		}
 
-		// Bulk delete.
+		// Bulk actions (add tags / delete).
 		if ( isset( $_REQUEST['uids'] ) && is_array( $_REQUEST['uids'] ) ) {
 			check_admin_referer( 'bulk-videos' );
-			if ( 'delete' !== $this->current_bulk_action() ) {
+			$bulk = $this->current_bulk_action();
+			$uids = array_map( 'sanitize_text_field', wp_unslash( $_REQUEST['uids'] ) );
+
+			// Bulk add tags to the selected videos.
+			if ( 'cvm_add_tags' === $bulk ) {
+				$raw_tags = isset( $_REQUEST['cvm_bulk_tags'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['cvm_bulk_tags'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$tags     = Coywolf_CVM_Cloudflare::parse_tags( $raw_tags );
+				$tagged   = 0;
+				if ( ! empty( $tags ) ) {
+					foreach ( $uids as $uid ) {
+						if ( '' === $uid ) {
+							continue;
+						}
+						$result = $this->cloudflare->add_tags( $uid, $tags );
+						if ( ! is_wp_error( $result ) ) {
+							++$tagged;
+						}
+					}
+				}
+				$this->redirect_list( array( 'coywolf_cvm_tagged' => $tagged ) );
+			}
+
+			if ( 'delete' !== $bulk ) {
 				return;
 			}
-			$uids    = array_map( 'sanitize_text_field', wp_unslash( $_REQUEST['uids'] ) );
 			$deleted = 0;
 			foreach ( $uids as $uid ) {
 				if ( '' === $uid ) {
@@ -396,6 +417,17 @@ class Coywolf_CVM_Admin {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Video updated.', 'coywolf-video-manager' ) . '</p></div>';
 			return;
 		}
+		if ( isset( $_GET['coywolf_cvm_tagged'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$tagged = (int) $_GET['coywolf_cvm_tagged']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html(
+				sprintf(
+					/* translators: %d: number of videos tagged. */
+					_n( 'Tags added to %d video.', 'Tags added to %d videos.', $tagged, 'coywolf-video-manager' ),
+					$tagged
+				)
+			) . '</p></div>';
+			return;
+		}
 		if ( isset( $_GET['coywolf_cvm_cleanup_failed'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Could not verify the video list with Cloudflare, so nothing was removed. Try again in a moment.', 'coywolf-video-manager' ) . '</p></div>';
 			return;
@@ -454,6 +486,11 @@ class Coywolf_CVM_Admin {
 				<input type="text" id="cvm-up-creator" class="regular-text" />
 			</div>
 			<div class="coywolf-cvm-edit-field">
+				<label for="cvm-up-tags"><?php esc_html_e( 'Tags', 'coywolf-video-manager' ); ?></label>
+				<input type="text" id="cvm-up-tags" class="regular-text" />
+				<p class="description"><?php esc_html_e( 'Comma-separated. Added on top of any default tags from Settings.', 'coywolf-video-manager' ); ?></p>
+			</div>
+			<div class="coywolf-cvm-edit-field">
 				<label for="cvm-up-origins"><?php esc_html_e( 'Allowed origins (one per line)', 'coywolf-video-manager' ); ?></label>
 				<textarea id="cvm-up-origins" class="large-text" rows="3" placeholder="example.com"></textarea>
 			</div>
@@ -493,6 +530,7 @@ class Coywolf_CVM_Admin {
 		}
 
 		$name     = isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '';
+		$tags     = implode( ', ', Coywolf_CVM_Cloudflare::video_tags( $video ) );
 		$creator  = isset( $video['creator'] ) ? (string) $video['creator'] : '';
 		$origins  = isset( $video['allowedOrigins'] ) && is_array( $video['allowedOrigins'] ) ? implode( "\n", $video['allowedOrigins'] ) : '';
 		$duration = isset( $video['duration'] ) ? (float) $video['duration'] : 0;
@@ -530,6 +568,13 @@ class Coywolf_CVM_Admin {
 				<tr>
 					<th scope="row"><label for="cvm-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label></th>
 					<td><input type="text" id="cvm-name" class="regular-text" value="<?php echo esc_attr( $name ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cvm-tags"><?php esc_html_e( 'Tags', 'coywolf-video-manager' ); ?></label></th>
+					<td>
+						<input type="text" id="cvm-tags" class="regular-text" value="<?php echo esc_attr( $tags ); ?>" />
+						<p class="description"><?php esc_html_e( 'Comma-separated. Tags let you filter the All Videos list (search with #tag).', 'coywolf-video-manager' ); ?></p>
+					</td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="cvm-description"><?php esc_html_e( 'Description', 'coywolf-video-manager' ); ?></label></th>
