@@ -57,7 +57,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 == Privacy & third-party services ==
 
-Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to Cloudflare Stream on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to list, edit, and manage videos, to upload video files you choose (from the Upload Video screen or the block), and — when you add a video by URL — to have Cloudflare fetch that URL. On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's terms of service at https://www.cloudflare.com/website-terms/ and privacy policy at https://www.cloudflare.com/privacypolicy/.
+Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to Cloudflare Stream on your behalf. The WordPress server calls the Cloudflare API (api.cloudflare.com) using your API token to list, edit, and manage videos, and to upload video files you choose (from the Upload Video screen or the block). On the front end, the Cloudflare Stream player SDK loads from embed.cloudflarestream.com and video streams from cloudflarestream.com / videodelivery.net. See Cloudflare's terms of service at https://www.cloudflare.com/website-terms/ and privacy policy at https://www.cloudflare.com/privacypolicy/.
 
 == Styling with CSS ==
 
@@ -67,7 +67,7 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 
 1. The All Videos library with sortable columns for plays, likes, posts, and pages, plus bulk actions, filtering, and search.
 2. Editing a video's name, description, creator, allowed origins, and poster image or timestamp.
-3. Uploading a video by file or remote URL, with a live Cloudflare Stream storage meter.
+3. Uploading a video from your computer, with a live Cloudflare Stream storage meter.
 4. Connecting a Cloudflare account via Account ID and API token, with connection status and webhook controls.
 5. Appearance settings with a live preview, color scheme, and alignment controls for the video block.
 6. A published video block showing the poster, description, like button, view count, date, and transcript toggle.

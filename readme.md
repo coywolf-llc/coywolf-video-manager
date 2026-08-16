@@ -62,7 +62,7 @@ The live player, counts, and schema are rendered by the plugin, but each block a
 
 Privacy-first: this plugin includes no analytics, no tracking, and no data gathering — nothing about you, your site, or your visitors is ever collected. Its only outside connection is the service it exists to manage. The plugin connects WordPress to **Cloudflare Stream** on your behalf:
 
-- The WordPress server calls the **Cloudflare API** (`api.cloudflare.com`) using your API token to list, edit, and manage videos, to upload video files you choose (from the Upload Video screen or the block), and — when you add a video by URL — to have Cloudflare fetch that URL. See Cloudflare's [Terms of Service](https://www.cloudflare.com/website-terms/) and [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
+- The WordPress server calls the **Cloudflare API** (`api.cloudflare.com`) using your API token to list, edit, and manage videos, and to upload video files you choose (from the Upload Video screen or the block). See Cloudflare's [Terms of Service](https://www.cloudflare.com/website-terms/) and [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
 - On the front end, the Cloudflare Stream player SDK loads from `embed.cloudflarestream.com` and video streams from `cloudflarestream.com` / `videodelivery.net`.
 
 No data is sent anywhere except Cloudflare, and only as required to manage and play your videos.
@@ -114,7 +114,7 @@ Editing a video's name, description, creator, allowed origins, and poster image 
 ![Edit Video](.wordpress-org/screenshot-2.png)
 
 ### Upload Video
-Uploading a video by file or remote URL, with a live Cloudflare Stream storage meter.
+Uploading a video from your computer, with a live Cloudflare Stream storage meter.
 
 ![Upload Video](.wordpress-org/screenshot-3.png)
 

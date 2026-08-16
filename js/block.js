@@ -283,9 +283,6 @@
 		var originsState = useState( '' );
 		var originsText = originsState[ 0 ];
 		var setOriginsText = originsState[ 1 ];
-		var urlState = useState( '' );
-		var url = urlState[ 0 ];
-		var setUrl = urlState[ 1 ];
 
 		var busyState = useState( false );
 		var busy = busyState[ 0 ];
@@ -443,35 +440,6 @@
 			} );
 		}
 
-		function startUrl() {
-			var link = url.trim();
-			if ( ! link ) {
-				setStatus( __( 'Enter a video URL first.', 'coywolf-video-manager' ) );
-				return;
-			}
-			setBusy( true );
-			// Indeterminate: Cloudflare fetches the URL server-side. Keep the
-			// determinate bar hidden (progress = -1) and show a spinner.
-			setProgress( -1 );
-			setStatus( __( 'Cloudflare is fetching the video from the URL…', 'coywolf-video-manager' ) );
-			apiFetch( {
-				path: '/coywolf-cvm/v1/copy',
-				method: 'POST',
-				data: { url: link, name: name.trim(), creator: creator.trim(), allowedOrigins: origins() }
-			} ).then( function ( v ) {
-				if ( ! aliveRef.current ) {
-					return;
-				}
-				if ( ! v || ! v.uid ) {
-					throw new Error( __( 'No video returned.', 'coywolf-video-manager' ) );
-				}
-				setStatus( __( 'Cloudflare is processing the video…', 'coywolf-video-manager' ) );
-				pollReady( v.uid, 0 );
-			} ).catch( function ( e ) {
-				fail( ( e && e.message ) ? e.message : __( 'Import failed.', 'coywolf-video-manager' ) );
-			} );
-		}
-
 		return el(
 			Modal,
 			{
@@ -486,16 +454,6 @@
 				el( 'input', { id: 'coywolf-cvm-up-file', type: 'file', accept: 'video/*', ref: fileRef, disabled: busy } ),
 				el( 'p', { className: 'components-base-control__help' }, __( 'Large files are supported — the upload is sent in chunks and resumes after connection hiccups.', 'coywolf-video-manager' ) )
 			),
-			el( TextControl, {
-				label: __( 'Or add from a URL', 'coywolf-video-manager' ),
-				value: url,
-				type: 'url',
-				placeholder: 'https://example.com/video.mp4',
-				disabled: busy,
-				help: __( 'Cloudflare fetches the video directly from a publicly accessible URL — nothing passes through this site.', 'coywolf-video-manager' ),
-				__nextHasNoMarginBottom: true,
-				onChange: setUrl
-			} ),
 			el( TextControl, {
 				label: __( 'Name', 'coywolf-video-manager' ),
 				value: name,
@@ -522,8 +480,7 @@
 			el(
 				'div',
 				{ className: 'coywolf-cvm-upload-actions' },
-				el( Button, { variant: 'primary', onClick: startUpload, disabled: busy }, __( 'Upload to Cloudflare', 'coywolf-video-manager' ) ),
-				el( Button, { variant: 'secondary', onClick: startUrl, disabled: busy }, __( 'Add from URL', 'coywolf-video-manager' ) )
+				el( Button, { variant: 'primary', onClick: startUpload, disabled: busy }, __( 'Upload to Cloudflare', 'coywolf-video-manager' ) )
 			),
 			( busy && progress < 0 )
 				? el( 'div', { className: 'coywolf-cvm-upload-spinner' }, el( Spinner, {} ) )

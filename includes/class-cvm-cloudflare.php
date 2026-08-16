@@ -397,32 +397,6 @@ class Coywolf_CVM_Cloudflare {
 	}
 
 	/**
-	 * Import a video into Stream from a publicly accessible URL (Cloudflare
-	 * fetches it server-side; no browser upload involved).
-	 *
-	 * @param string $url  Source video URL.
-	 * @param array  $opts meta, creator, allowedOrigins, thumbnailTimestampPct.
-	 * @return array|WP_Error The new (still processing) video object.
-	 */
-	public function copy_from_url( $url, $opts = array() ) {
-		$body     = array_merge( array( 'url' => $url ), $opts );
-		$response = $this->request(
-			'POST',
-			$this->stream_url( '/copy' ),
-			array(
-				'body'    => $body,
-				'timeout' => 30,
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-		$this->flush_list_cache();
-		$this->flush_storage_usage();
-		return isset( $response['result'] ) ? $response['result'] : array();
-	}
-
-	/**
 	 * Create a one-time TUS (resumable) direct creator upload. The browser
 	 * then PATCHes file chunks straight to the returned URL without ever
 	 * seeing the API token. Unlike the basic direct upload, TUS has no
