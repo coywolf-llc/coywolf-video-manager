@@ -4,7 +4,7 @@ Tags: cloudflare stream, video, video block, video sitemap, video schema
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.60
+Stable tag: 1.0.61
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -73,6 +73,9 @@ Style the on-post UI from Videos > Settings > Appearance (with a live preview an
 6. A published video block showing the poster, description, like button, view count, date, and transcript toggle.
 
 == Changelog ==
+
+= 1.0.61 =
+* Remove the "add from URL" upload option; add a Cancel button (#62).
 
 = 1.0.60 =
 * Add a player border option (rename "Player corner radius" to "Player border") (#61).
