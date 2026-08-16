@@ -174,11 +174,9 @@ class Coywolf_CVM_Admin {
 						'generating'     => __( 'Generating captions — this can take a few minutes.', 'coywolf-video-manager' ),
 						'pickFile'       => __( 'Choose a .vtt file first.', 'coywolf-video-manager' ),
 						'pickVideo'      => __( 'Choose a video file first.', 'coywolf-video-manager' ),
-						'pickUrl'        => __( 'Enter a video URL first.', 'coywolf-video-manager' ),
 						'preparing'      => __( 'Preparing upload…', 'coywolf-video-manager' ),
 						'uploading'      => __( 'Uploading…', 'coywolf-video-manager' ),
 						'retrying'       => __( 'Connection hiccup — resuming upload…', 'coywolf-video-manager' ),
-						'fetching'       => __( 'Cloudflare is fetching the video from the URL…', 'coywolf-video-manager' ),
 						'processing'     => __( 'Uploaded. Cloudflare is processing the video…', 'coywolf-video-manager' ),
 						'uploadFailed'   => __( 'Upload failed.', 'coywolf-video-manager' ),
 						'stillProcessing' => __( 'Still processing — check All Videos shortly.', 'coywolf-video-manager' ),
@@ -448,11 +446,6 @@ class Coywolf_CVM_Admin {
 				<p class="description"><?php esc_html_e( 'Large files are supported — the upload is sent in chunks and resumes after connection hiccups.', 'coywolf-video-manager' ); ?></p>
 			</div>
 			<div class="coywolf-cvm-edit-field">
-				<label for="cvm-up-url"><?php esc_html_e( 'Or add from a URL', 'coywolf-video-manager' ); ?></label>
-				<input type="url" id="cvm-up-url" class="regular-text" placeholder="https://example.com/video.mp4" />
-				<p class="description"><?php esc_html_e( 'Cloudflare fetches the video directly from a publicly accessible URL — nothing passes through this site.', 'coywolf-video-manager' ); ?></p>
-			</div>
-			<div class="coywolf-cvm-edit-field">
 				<label for="cvm-up-name"><?php esc_html_e( 'Name', 'coywolf-video-manager' ); ?></label>
 				<input type="text" id="cvm-up-name" class="regular-text" />
 			</div>
@@ -466,7 +459,7 @@ class Coywolf_CVM_Admin {
 			</div>
 			<p>
 				<button type="button" class="button button-primary" id="cvm-up-start"><?php esc_html_e( 'Upload to Cloudflare', 'coywolf-video-manager' ); ?></button>
-				<button type="button" class="button" id="cvm-up-url-start"><?php esc_html_e( 'Add from URL', 'coywolf-video-manager' ); ?></button>
+				<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ); ?>"><?php esc_html_e( 'Cancel', 'coywolf-video-manager' ); ?></a>
 			</p>
 			<div class="coywolf-cvm-progress"><div class="coywolf-cvm-progress-bar"></div></div>
 			<div class="coywolf-cvm-upload-status" role="status" aria-live="polite"></div>

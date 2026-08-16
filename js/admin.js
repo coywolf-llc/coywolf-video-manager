@@ -535,7 +535,6 @@
 			return;
 		}
 		var startBtn = document.getElementById( 'cvm-up-start' );
-		var urlBtn = document.getElementById( 'cvm-up-url-start' );
 		var statusEl = root.querySelector( '.coywolf-cvm-upload-status' );
 		var progress = root.querySelector( '.coywolf-cvm-progress' );
 		var bar = root.querySelector( '.coywolf-cvm-progress-bar' );
@@ -554,9 +553,6 @@
 
 		function setBusy( busy ) {
 			startBtn.disabled = busy;
-			if ( urlBtn ) {
-				urlBtn.disabled = busy;
-			}
 		}
 
 		function fail( message ) {
@@ -651,36 +647,6 @@
 				fail( errMsg( e ) );
 			} );
 		} );
-
-		// Import from a URL: Cloudflare fetches it server-side (name, creator,
-		// and origins all travel with the copy request itself).
-		if ( urlBtn ) {
-			urlBtn.addEventListener( 'click', function () {
-				var url = fieldValue( 'cvm-up-url' );
-				if ( ! url ) {
-					statusEl.textContent = i18n.pickUrl || 'Enter a video URL first.';
-					return;
-				}
-				setBusy( true );
-				statusEl.textContent = i18n.fetching || 'Cloudflare is fetching the video from the URL…';
-
-				rest( '/copy', 'POST', {
-					url: url,
-					name: fieldValue( 'cvm-up-name' ),
-					creator: fieldValue( 'cvm-up-creator' ),
-					allowedOrigins: origins()
-				} ).then( function ( v ) {
-					if ( ! v || ! v.uid ) {
-						throw new Error( 'No video returned.' );
-					}
-					progress.style.display = 'block';
-					statusEl.textContent = i18n.processing || 'Cloudflare is processing the video…';
-					pollStatus( v.uid, 0 );
-				} ).catch( function ( e ) {
-					fail( errMsg( e ) );
-				} );
-			} );
-		}
 	}
 
 	onReady( function () {
