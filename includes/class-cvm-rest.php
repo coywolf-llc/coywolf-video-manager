@@ -344,8 +344,24 @@ class Coywolf_CVM_REST {
 			$params = $request->get_params();
 		}
 
-		if ( isset( $params['name'] ) ) {
-			$fields['meta'] = array( 'name' => sanitize_text_field( $params['name'] ) );
+		// Name and tags both live in Cloudflare's meta object, which a video
+		// update REPLACES wholesale — so fetch the current meta and merge onto it
+		// to preserve the other field (and anything else stored there).
+		if ( isset( $params['name'] ) || isset( $params['tags'] ) ) {
+			$current = $this->cloudflare->get_video( (string) $request['uid'] );
+			$meta    = ( ! is_wp_error( $current ) && isset( $current['meta'] ) && is_array( $current['meta'] ) ) ? $current['meta'] : array();
+			if ( isset( $params['name'] ) ) {
+				$meta['name'] = sanitize_text_field( $params['name'] );
+			}
+			if ( isset( $params['tags'] ) ) {
+				$tags = Coywolf_CVM_Cloudflare::parse_tags( $params['tags'] );
+				if ( empty( $tags ) ) {
+					unset( $meta['tags'] );
+				} else {
+					$meta['tags'] = implode( ', ', $tags );
+				}
+			}
+			$fields['meta'] = $meta;
 		}
 		if ( isset( $params['creator'] ) ) {
 			$creator = sanitize_text_field( $params['creator'] );
@@ -464,8 +480,16 @@ class Coywolf_CVM_REST {
 		$opts = array(
 			'maxDurationSeconds' => isset( $params['maxDurationSeconds'] ) ? max( 1, (int) $params['maxDurationSeconds'] ) : 3600,
 		);
+		$meta = array();
 		if ( ! empty( $params['name'] ) ) {
-			$opts['meta'] = array( 'name' => sanitize_text_field( $params['name'] ) );
+			$meta['name'] = sanitize_text_field( $params['name'] );
+		}
+		$tags = $this->upload_tags( $params );
+		if ( ! empty( $tags ) ) {
+			$meta['tags'] = implode( ', ', $tags );
+		}
+		if ( ! empty( $meta ) ) {
+			$opts['meta'] = $meta;
 		}
 		if ( ! empty( $params['creator'] ) ) {
 			$opts['creator'] = sanitize_text_field( $params['creator'] );
@@ -508,6 +532,10 @@ class Coywolf_CVM_REST {
 		$metadata = array( 'maxDurationSeconds' => 21600 );
 		if ( ! empty( $params['name'] ) ) {
 			$metadata['name'] = sanitize_text_field( $params['name'] );
+		}
+		$tags = $this->upload_tags( $params );
+		if ( ! empty( $tags ) ) {
+			$metadata['tags'] = implode( ', ', $tags );
 		}
 		$creator = isset( $params['creator'] ) ? sanitize_text_field( $params['creator'] ) : '';
 
@@ -806,11 +834,25 @@ class Coywolf_CVM_REST {
 	 * @param array $video Raw video.
 	 * @return array
 	 */
+	/**
+	 * Tags to stamp on an upload: the Settings default tags merged with any the
+	 * uploader typed in the form.
+	 *
+	 * @param array $params Request params.
+	 * @return string[]
+	 */
+	private function upload_tags( $params ) {
+		$default = Coywolf_CVM_Cloudflare::parse_tags( Coywolf_Video_Manager::instance()->settings()->get( 'default_tags' ) );
+		$user    = isset( $params['tags'] ) ? Coywolf_CVM_Cloudflare::parse_tags( $params['tags'] ) : array();
+		return Coywolf_CVM_Cloudflare::parse_tags( array_merge( $default, $user ) );
+	}
+
 	private function normalize_video( $video ) {
 		$uid = isset( $video['uid'] ) ? (string) $video['uid'] : '';
 		return array(
 			'uid'                   => $uid,
 			'name'                  => isset( $video['meta']['name'] ) ? (string) $video['meta']['name'] : '',
+			'tags'                  => Coywolf_CVM_Cloudflare::video_tags( $video ),
 			// Not a Cloudflare field — the local description (Edit Video page).
 			'description'           => Coywolf_CVM_Block::video_description( $uid ),
 			'created'               => isset( $video['created'] ) ? (string) $video['created'] : '',

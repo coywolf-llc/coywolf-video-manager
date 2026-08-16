@@ -283,6 +283,9 @@
 		var originsState = useState( '' );
 		var originsText = originsState[ 0 ];
 		var setOriginsText = originsState[ 1 ];
+		var tagsState = useState( '' );
+		var tagsText = tagsState[ 0 ];
+		var setTagsText = tagsState[ 1 ];
 
 		var busyState = useState( false );
 		var busy = busyState[ 0 ];
@@ -398,7 +401,7 @@
 			apiFetch( {
 				path: '/coywolf-cvm/v1/tus-upload',
 				method: 'POST',
-				data: { length: file.size, name: name.trim() || file.name, creator: creator.trim() }
+				data: { length: file.size, name: name.trim() || file.name, creator: creator.trim(), tags: tagsText.trim() }
 			} ).then( function ( res ) {
 				if ( ! aliveRef.current ) {
 					return;
@@ -468,6 +471,14 @@
 				__nextHasNoMarginBottom: true,
 				onChange: setCreator
 			} ),
+			el( TextControl, {
+				label: __( 'Tags (comma-separated)', 'coywolf-video-manager' ),
+				value: tagsText,
+				disabled: busy,
+				help: __( 'Added on top of any default tags from Settings.', 'coywolf-video-manager' ),
+				__nextHasNoMarginBottom: true,
+				onChange: setTagsText
+			} ),
 			el( TextareaControl, {
 				label: __( 'Allowed origins (one per line)', 'coywolf-video-manager' ),
 				value: originsText,
@@ -517,10 +528,10 @@
 		// The video's canonical name/description (what the Edit Video page
 		// shows) and the user's staged edits (null = untouched). Staged edits
 		// are pushed to the video only after the post itself is saved.
-		var videoMetaState = useState( { name: null, description: null } );
+		var videoMetaState = useState( { name: null, description: null, tags: null } );
 		var videoMeta = videoMetaState[ 0 ];
 		var setVideoMeta = videoMetaState[ 1 ];
-		var stagedState = useState( { name: null, description: null } );
+		var stagedState = useState( { name: null, description: null, tags: null } );
 		var staged = stagedState[ 0 ];
 		var setStaged = stagedState[ 1 ];
 		var wasSavingPost = useRef( false );
@@ -530,10 +541,10 @@
 			return editor ? ( editor.isSavingPost() && ! editor.isAutosavingPost() ) : false;
 		}, [] );
 
-		// Load the canonical name/description when the selected video changes.
+		// Load the canonical name/description/tags when the selected video changes.
 		useEffect( function () {
-			setVideoMeta( { name: null, description: null } );
-			setStaged( { name: null, description: null } );
+			setVideoMeta( { name: null, description: null, tags: null } );
+			setStaged( { name: null, description: null, tags: null } );
 			if ( ! a.videoId ) {
 				return undefined;
 			}
@@ -543,7 +554,8 @@
 					if ( alive && res ) {
 						setVideoMeta( {
 							name: 'string' === typeof res.name ? res.name : '',
-							description: 'string' === typeof res.description ? res.description : ''
+							description: 'string' === typeof res.description ? res.description : '',
+							tags: Array.isArray( res.tags ) ? res.tags.join( ', ' ) : ''
 						} );
 					}
 				} )
@@ -573,6 +585,9 @@
 			if ( null !== staged.description && staged.description !== videoMeta.description ) {
 				data.description = staged.description;
 			}
+			if ( null !== staged.tags && staged.tags !== videoMeta.tags ) {
+				data.tags = staged.tags;
+			}
 			if ( ! Object.keys( data ).length ) {
 				return;
 			}
@@ -584,9 +599,10 @@
 			} ).then( function () {
 				setVideoMeta( {
 					name: undefined !== data.name ? data.name : videoMeta.name,
-					description: undefined !== data.description ? data.description : videoMeta.description
+					description: undefined !== data.description ? data.description : videoMeta.description,
+					tags: undefined !== data.tags ? data.tags : videoMeta.tags
 				} );
-				setStaged( { name: null, description: null } );
+				setStaged( { name: null, description: null, tags: null } );
 				snackbar( 'success', __( 'Video updated.', 'coywolf-video-manager' ), uid );
 			} ).catch( function ( err ) {
 				snackbar( 'error', ( err && err.message ) ? err.message : __( 'Updating the video failed.', 'coywolf-video-manager' ), uid );
@@ -623,6 +639,7 @@
 		// stored block name while the lookup is still in flight.
 		var videoNameValue = null !== staged.name ? staged.name : ( null !== videoMeta.name ? videoMeta.name : ( a.videoName || '' ) );
 		var videoDescValue = null !== staged.description ? staged.description : ( null !== videoMeta.description ? videoMeta.description : '' );
+		var videoTagsValue = null !== staged.tags ? staged.tags : ( null !== videoMeta.tags ? videoMeta.tags : '' );
 
 		// Live preview: mirror the server's caption markup client-side so name
 		// and description edits show on the block instantly instead of waiting
@@ -736,7 +753,24 @@
 						}
 					},
 					a.videoId ? __( 'Replace video', 'coywolf-video-manager' ) : __( 'Select video', 'coywolf-video-manager' )
-				)
+				),
+				a.videoId
+					? el(
+						'div',
+						{ className: 'coywolf-cvm-video-field' },
+						el( TextControl, {
+							label: __( 'Tags (comma-separated)', 'coywolf-video-manager' ),
+							value: videoTagsValue,
+							help: __( 'Saved to the video when the post is saved. Used to filter the All Videos list.', 'coywolf-video-manager' ),
+							__nextHasNoMarginBottom: true,
+							onChange: function ( v ) {
+								setStaged( function ( prev ) {
+									return { name: prev.name, description: prev.description, tags: v };
+								} );
+							}
+						} )
+					)
+					: null
 			),
 			el(
 				PanelBody,
@@ -867,7 +901,7 @@
 							__nextHasNoMarginBottom: true,
 							onChange: function ( v ) {
 								setStaged( function ( prev ) {
-									return { name: v, description: prev.description };
+									return { name: v, description: prev.description, tags: prev.tags };
 								} );
 								// Keep the block's stored name (preview +
 								// front-end fallback) in sync.
@@ -889,7 +923,7 @@
 							__nextHasNoMarginBottom: true,
 							onChange: function ( v ) {
 								setStaged( function ( prev ) {
-									return { name: prev.name, description: v };
+									return { name: prev.name, description: v, tags: prev.tags };
 								} );
 								// Stored on the block too, so the edit marks
 								// the post as needing a save.

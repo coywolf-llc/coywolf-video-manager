@@ -101,6 +101,23 @@
 				}
 			} );
 		}
+		// Click a #tag chip → add "#tag" to the search box and filter. Falls back
+		// to the chip's own href (s=#tag) when there's no search box / no JS.
+		forEach( document.querySelectorAll( 'a.coywolf-cvm-tag' ), function ( el ) {
+			el.addEventListener( 'click', function ( e ) {
+				var box = document.querySelector( '.search-box input[type="search"]' );
+				if ( ! box || ! box.form ) {
+					return;
+				}
+				e.preventDefault();
+				var tag = '#' + el.getAttribute( 'data-tag' );
+				var current = box.value.trim();
+				if ( -1 === current.split( /\s+/ ).indexOf( tag ) ) {
+					box.value = ( current ? current + ' ' : '' ) + tag;
+				}
+				box.form.submit();
+			} );
+		} );
 		// Confirm row deletes.
 		forEach( document.querySelectorAll( 'a.coywolf-cvm-delete' ), function ( el ) {
 			el.addEventListener( 'click', function ( e ) {
@@ -147,6 +164,7 @@
 			var data = {
 				name: document.getElementById( 'cvm-name' ).value,
 				description: document.getElementById( 'cvm-description' ).value,
+				tags: document.getElementById( 'cvm-tags' ).value,
 				creator: document.getElementById( 'cvm-creator' ).value,
 				allowedOrigins: origins,
 				posterMode: mode
@@ -619,7 +637,8 @@
 			rest( '/tus-upload', 'POST', {
 				length: file.size,
 				name: fieldValue( 'cvm-up-name' ) || file.name,
-				creator: fieldValue( 'cvm-up-creator' )
+				creator: fieldValue( 'cvm-up-creator' ),
+				tags: fieldValue( 'cvm-up-tags' )
 			} ).then( function ( res ) {
 				if ( ! res || ! res.uploadURL || ! res.uid ) {
 					throw new Error( 'No upload URL returned.' );

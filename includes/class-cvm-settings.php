@@ -125,6 +125,7 @@ class Coywolf_CVM_Settings {
 			'border_enabled'      => false,
 			'border_width'        => 1,
 			'border_color'        => '#eeeeee',
+			'default_tags'        => '',
 		);
 	}
 
@@ -278,6 +279,9 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 
+		add_settings_section( 'coywolf_cvm_uploads', __( 'Uploads', 'coywolf-video-manager' ), '__return_false', self::PAGE );
+		add_settings_field( 'default_tags', __( 'Default tags', 'coywolf-video-manager' ), array( $this, 'render_default_tags_field' ), self::PAGE, 'coywolf_cvm_uploads' );
+
 		add_settings_section( 'coywolf_cvm_advanced', __( 'Sitemap', 'coywolf-video-manager' ), '__return_false', self::PAGE );
 		add_settings_field( 'advanced', __( 'Video sitemap', 'coywolf-video-manager' ), array( $this, 'render_advanced_field' ), self::PAGE, 'coywolf_cvm_advanced' );
 	}
@@ -350,6 +354,8 @@ class Coywolf_CVM_Settings {
 		$clean['border_width']   = isset( $input['border_width'] ) ? max( 0, min( 20, (int) $input['border_width'] ) ) : 1;
 		$border_color            = $this->sanitize_hex( isset( $input['border_color'] ) ? $input['border_color'] : '' );
 		$clean['border_color']   = '' !== $border_color ? $border_color : '#eeeeee';
+
+		$clean['default_tags'] = implode( ', ', Coywolf_CVM_Cloudflare::parse_tags( isset( $input['default_tags'] ) ? $input['default_tags'] : '' ) );
 
 		$weights               = array( '100', '200', '300', '400', '500', '600', '700', '800', '900' );
 		$clean['title_weight'] = ( isset( $input['title_weight'] ) && in_array( (string) $input['title_weight'], $weights, true ) ) ? (string) $input['title_weight'] : '700';
@@ -796,6 +802,19 @@ class Coywolf_CVM_Settings {
 			esc_attr( $key ),
 			esc_attr( $this->get_size( $key ) )
 		);
+	}
+
+	/**
+	 * Default tags applied to videos uploaded from this site.
+	 */
+	public function render_default_tags_field() {
+		printf(
+			'<p><input type="text" name="%1$s[default_tags]" value="%2$s" class="regular-text coywolf-cvm-field" data-key="default_tags" placeholder="%3$s" /></p>',
+			esc_attr( self::OPTION ),
+			esc_attr( (string) $this->get( 'default_tags' ) ),
+			esc_attr__( 'Recollect, promo', 'coywolf-video-manager' )
+		);
+		echo '<p class="description">' . esc_html__( 'Comma-separated tags added automatically to every video uploaded from this site (via the Upload Video screen or the block). Tags let you filter the All Videos list. Leave empty for none.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**
