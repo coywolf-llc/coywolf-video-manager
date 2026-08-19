@@ -125,6 +125,7 @@ class Coywolf_CVM_Settings {
 			'border_enabled'      => false,
 			'border_width'        => 1,
 			'border_color'        => '#eeeeee',
+			'player_bg'           => '',
 			'default_tags'        => '',
 		);
 	}
@@ -274,7 +275,7 @@ class Coywolf_CVM_Settings {
 		add_settings_field( 'appearance_preview', __( 'Preview', 'coywolf-video-manager' ), array( $this, 'render_appearance_preview_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_scheme', __( 'Color scheme', 'coywolf-video-manager' ), array( $this, 'render_appearance_scheme_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_align', __( 'Alignment', 'coywolf-video-manager' ), array( $this, 'render_appearance_align_field' ), self::PAGE, 'coywolf_cvm_appearance' );
-		add_settings_field( 'appearance_border', __( 'Player border', 'coywolf-video-manager' ), array( $this, 'render_appearance_border_field' ), self::PAGE, 'coywolf_cvm_appearance' );
+		add_settings_field( 'appearance_player', __( 'Player', 'coywolf-video-manager' ), array( $this, 'render_appearance_player_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_title', __( 'Name & description', 'coywolf-video-manager' ), array( $this, 'render_appearance_title_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_like', __( 'Like button', 'coywolf-video-manager' ), array( $this, 'render_appearance_like_field' ), self::PAGE, 'coywolf_cvm_appearance' );
 		add_settings_field( 'appearance_meta', __( 'Views & date text', 'coywolf-video-manager' ), array( $this, 'render_appearance_meta_field' ), self::PAGE, 'coywolf_cvm_appearance' );
@@ -354,6 +355,9 @@ class Coywolf_CVM_Settings {
 		$clean['border_width']   = isset( $input['border_width'] ) ? max( 0, min( 20, (int) $input['border_width'] ) ) : 1;
 		$border_color            = $this->sanitize_hex( isset( $input['border_color'] ) ? $input['border_color'] : '' );
 		$clean['border_color']   = '' !== $border_color ? $border_color : '#eeeeee';
+
+		// Empty = transparent (the default).
+		$clean['player_bg'] = $this->sanitize_hex( isset( $input['player_bg'] ) ? $input['player_bg'] : '' );
 
 		$clean['default_tags'] = implode( ', ', Coywolf_CVM_Cloudflare::parse_tags( isset( $input['default_tags'] ) ? $input['default_tags'] : '' ) );
 
@@ -603,7 +607,10 @@ class Coywolf_CVM_Settings {
 
 		$preview  = '<div class="coywolf-cvm-preview-stage" id="coywolf-cvm-preview-stage">';
 		$preview .= '<figure class="coywolf-cvm coywolf-cvm-preview' . $scheme_class . '" id="coywolf-cvm-preview">';
-		$preview .= '<div class="coywolf-cvm-frame coywolf-cvm-preview-frame"><span class="coywolf-cvm-preview-play" aria-hidden="true"></span></div>';
+		// The preview frame shows a transparency checkerboard while the player
+		// background is empty (= transparent, the default).
+		$bg_class = '' === (string) $this->get( 'player_bg' ) ? ' is-transparent' : '';
+		$preview .= '<div class="coywolf-cvm-frame coywolf-cvm-preview-frame' . $bg_class . '"><span class="coywolf-cvm-preview-play" aria-hidden="true"></span></div>';
 		$preview .= '<figcaption class="coywolf-cvm-title"><strong class="coywolf-cvm-name">' . esc_html__( 'Your video name', 'coywolf-video-manager' ) . '</strong><span class="coywolf-cvm-sep"> — </span><span class="coywolf-cvm-desc">' . esc_html__( 'A short video description.', 'coywolf-video-manager' ) . '</span></figcaption>';
 		$preview .= '<div class="coywolf-cvm-meta">';
 		$preview .= '<button type="button" class="coywolf-cvm-like" aria-pressed="false"><span class="screen-reader-text">' . esc_html__( 'Like', 'coywolf-video-manager' ) . '</span>' . Coywolf_CVM_Block::thumb_svg( $this->get( 'like_icon' ) ) . '<span class="coywolf-cvm-like-count">175</span></button>';
@@ -663,10 +670,10 @@ class Coywolf_CVM_Settings {
 	}
 
 	/**
-	 * Player border: corner radius, plus an optional border with a pixel width
-	 * and color.
+	 * Player: corner radius, an optional border (width + color), and the
+	 * background color behind the player's letterboxing.
 	 */
-	public function render_appearance_border_field() {
+	public function render_appearance_player_field() {
 		printf(
 			'<p><label>%1$s <input type="number" min="0" max="48" step="1" name="%2$s[radius]" value="%3$d" class="small-text coywolf-cvm-field" data-key="radius" /> px</label></p>',
 			esc_html__( 'Corner radius', 'coywolf-video-manager' ),
@@ -689,6 +696,10 @@ class Coywolf_CVM_Settings {
 		);
 		$this->color_input( 'border_color', __( 'Border color', 'coywolf-video-manager' ) );
 		echo '<p class="description">' . esc_html__( 'Draws a solid border around the video player. Can be overridden per video block.', 'coywolf-video-manager' ) . '</p>';
+
+		echo '<div style="margin-top:1em;"></div>';
+		$this->color_input( 'player_bg', __( 'Background color', 'coywolf-video-manager' ) );
+		echo '<p class="description">' . esc_html__( 'The color behind the player, including the letterboxing around videos that don’t fill the frame. Leave empty for transparent (the default), so the player blends into the page.', 'coywolf-video-manager' ) . '</p>';
 	}
 
 	/**

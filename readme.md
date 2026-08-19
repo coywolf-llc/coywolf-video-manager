@@ -16,7 +16,7 @@ Coywolf Video Manager turns the WordPress admin into a control panel for your Cl
 ### Features
 
 - **Video block** — search your entire Stream library and embed a responsive video in a `<figure>` with the name in a `<figcaption>`, or upload a new video to Cloudflare without leaving the editor. Per-block control over size (responsive or max-width), poster image (by timestamp or from the Media Library), start time, and playback options (controls, autoplay, loop, preload, mute, lazy-load).
-- **Cloudflare Stream player** — the official Stream player, with an optional play-button accent color.
+- **Cloudflare Stream player** — the official Stream player, with an optional play-button accent color and a player background color (transparent by default, so letterboxing blends into your page).
 - **Likes, views & upload date** — a YouTube-style row under each video: a like button, the local view count, and when the video was uploaded to Cloudflare. Cloudflare's API doesn't expose likes or views, so the plugin records them locally in WordPress. Displayed likes never exceed the view count.
 - **Video schema** — automatic `VideoObject` JSON-LD with a large (1200px) thumbnail, description, duration, upload date, and optional view/like interaction counts. Videos with captions also get a full plain-text `transcript` and a downloadable `caption` VTT track (linked straight from Cloudflare, or mirrored into the uploads folder when Cloudflare doesn't serve it publicly).
 - **All Videos screen** — a sortable table of every video with views, likes, tags, and how many posts and pages embed each one, linking through to filtered views.
@@ -89,6 +89,7 @@ Style the on-post UI from **Videos → Settings → Appearance** (with a live pr
 | `--cvm-radius` | Player corner radius | `0` |
 | `--cvm-border-width` | Player border width | `0` |
 | `--cvm-border-color` | Player border color | `#eee` |
+| `--cvm-player-bg` | Player background (behind the letterboxing) | `transparent` |
 
 Override them (or target the classes directly) from your theme:
 

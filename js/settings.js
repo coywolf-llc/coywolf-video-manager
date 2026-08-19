@@ -86,6 +86,16 @@
 		setVar( preview, '--cvm-border-color', color );
 	}
 
+	// Player background: empty = transparent (checkerboard in the preview).
+	function applyPlayerBg( preview ) {
+		var value = ( fieldValue( 'player_bg' ) || '' ).trim();
+		var frame = preview.querySelector( '.coywolf-cvm-preview-frame' );
+		setVar( preview, '--cvm-player-bg', '' === value ? null : value );
+		if ( frame ) {
+			frame.classList.toggle( 'is-transparent', '' === value );
+		}
+	}
+
 	function applyChoice( preview, key, name ) {
 		var value = fieldValue( key );
 		if ( value && value !== '' + defaults[ key ] ) {
@@ -143,6 +153,7 @@
 		applyChoice( preview, 'meta_align', '--cvm-meta-align' );
 		applyRadius( preview );
 		applyBorder( preview );
+		applyPlayerBg( preview );
 		applyIcon( preview );
 
 		// Show/hide the name, description, and their separator.
