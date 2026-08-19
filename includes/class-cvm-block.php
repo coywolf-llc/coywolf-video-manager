@@ -265,6 +265,14 @@ class Coywolf_CVM_Block {
 			$vars['--cvm-border-color'] = $this->safe_hex( (string) $this->settings->get( 'border_color' ), '#eeeeee' );
 		}
 
+		// Player background (the frame behind the letterboxing; the player's own
+		// letterbox follows it via the iframe letterboxColor param). Default is
+		// transparent, set in view.css.
+		$player_bg = (string) $this->settings->get( 'player_bg' );
+		if ( preg_match( '/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $player_bg ) ) {
+			$vars['--cvm-player-bg'] = $player_bg;
+		}
+
 		if ( empty( $vars ) ) {
 			return '';
 		}
@@ -382,6 +390,11 @@ class Coywolf_CVM_Block {
 		if ( '' !== $primary ) {
 			$params['primaryColor'] = $primary;
 		}
+		// Letterbox/pillarbox background: the Settings player background color,
+		// or transparent by default so the player blends into the page. (The
+		// hex's "#" is URL-encoded by http_build_query in iframe_url().)
+		$player_bg                = (string) $this->settings->get( 'player_bg' );
+		$params['letterboxColor'] = preg_match( '/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $player_bg ) ? $player_bg : 'transparent';
 		if ( '' !== $poster ) {
 			$params['poster'] = $poster;
 		}

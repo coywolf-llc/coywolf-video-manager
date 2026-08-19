@@ -223,6 +223,7 @@ class Coywolf_CVM_Admin {
 							'border_enabled' => $d['border_enabled'],
 							'border_width'   => $d['border_width'],
 							'border_color'   => $d['border_color'],
+							'player_bg'      => $d['player_bg'],
 						),
 						'icons'    => array(
 							'heart'  => Coywolf_CVM_Block::thumb_svg( 'heart' ),

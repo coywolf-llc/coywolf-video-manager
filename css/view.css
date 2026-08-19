@@ -31,6 +31,7 @@
 	--cvm-radius: 0;
 	--cvm-border-width: 0;
 	--cvm-border-color: #eee;
+	--cvm-player-bg: transparent;
 
 	margin: 0 0 1.5em;
 	padding: 0;
@@ -53,9 +54,13 @@
 	}
 }
 
-/* Responsive iframe wrapper (padding-top + max-width come from inline styles). */
+/* Responsive iframe wrapper (padding-top + max-width come from inline styles).
+   background-color (longhand, so the Settings preview can layer a transparency
+   checkerboard as a background-image) follows the player background setting;
+   the player's own letterboxing follows it too via the iframe letterboxColor
+   param. Transparent by default so the player blends into the page. */
 .coywolf-cvm .coywolf-cvm-frame {
-	background: #000;
+	background-color: var( --cvm-player-bg );
 	overflow: hidden;
 	border: var( --cvm-border-width ) solid var( --cvm-border-color );
 	border-radius: var( --cvm-radius );
